@@ -3,14 +3,31 @@ import { create } from 'zustand';
 export interface Affirmation {
   id: string;
   uri: string;
+  cloudUrl?: string;
   title: string;
   text?: string;
   isFavorite?: boolean;
   date: number;
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  itemIds: string[];
+  createdAt: number;
+}
+
+export interface SavedText {
+  id: string;
+  title: string;
+  text: string;
+  createdAt: number;
+}
+
 interface AppState {
   affirmations: Affirmation[];
+  playlists: Playlist[];
+  savedTexts: SavedText[];
   isDarkMode: boolean;
   bgmType: string;
   voiceVolume: number;
@@ -27,16 +44,65 @@ interface AppState {
   setBgmVolume: (vol: number) => void;
   setIsNotificationEnabled: (enabled: boolean) => void;
   setNotificationTime: (time: Date) => void;
+  addPlaylist: (pl: Playlist) => void;
+  updatePlaylist: (id: string, name: string, itemIds: string[]) => void;
+  removePlaylist: (id: string) => void;
+  addSavedText: (st: SavedText) => void;
+  removeSavedText: (id: string) => void;
+
+  listenedDays: Record<string, boolean>;
+  currentStreak: number;
+  longestStreak: number;
+  markListenedToday: () => void;
+  bgImageUrl: string | null;
+  setBgImageUrl: (url: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   affirmations: [],
+  playlists: [],
+  savedTexts: [],
   isDarkMode: true, // デフォルトはダークモード
   bgmType: 'none',
   voiceVolume: 1.0,
   bgmVolume: 0.15,
   isNotificationEnabled: false,
   notificationTime: new Date(new Date().setHours(8, 0, 0, 0)), // デフォルトは朝8時
+  bgImageUrl: null,
+  setBgImageUrl: (url) => set({ bgImageUrl: url }),
+  
+  listenedDays: {},
+  currentStreak: 0,
+  longestStreak: 0,
+
+  markListenedToday: () => set((state) => {
+    // ローカルタイムゾーンでの YYYY-MM-DD を取得
+    const today = new Date();
+    const tzOffset = today.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(today.getTime() - tzOffset)).toISOString().split('T')[0];
+
+    // すでに今日記録済みなら何もしない
+    if (state.listenedDays[localISOTime]) return state;
+
+    const newListenedDays = { ...state.listenedDays, [localISOTime]: true };
+
+    // 昨日の日付を計算してストリーク判定
+    const yesterdayDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayISO = (new Date(yesterdayDate.getTime() - tzOffset)).toISOString().split('T')[0];
+
+    let newStreak = 1;
+    if (state.listenedDays[yesterdayISO]) {
+      newStreak = (state.currentStreak || 0) + 1;
+    }
+
+    const newLongest = Math.max(state.longestStreak || 0, newStreak);
+
+    return {
+      listenedDays: newListenedDays,
+      currentStreak: newStreak,
+      longestStreak: newLongest
+    };
+  }),
   
   addAffirmation: (aff) => set((state) => ({ 
     affirmations: [aff, ...state.affirmations] 
@@ -60,4 +126,16 @@ export const useAppStore = create<AppState>((set) => ({
   setBgmVolume: (vol) => set({ bgmVolume: vol }),
   setIsNotificationEnabled: (enabled) => set({ isNotificationEnabled: enabled }),
   setNotificationTime: (time) => set({ notificationTime: time }),
+  
+  addPlaylist: (pl) => set((state) => ({ playlists: [pl, ...state.playlists] })),
+  updatePlaylist: (id, name, itemIds) => set((state) => ({
+    playlists: state.playlists.map(pl => pl.id === id ? { ...pl, name, itemIds } : pl)
+  })),
+  removePlaylist: (id) => set((state) => ({
+    playlists: state.playlists.filter(pl => pl.id !== id)
+  })),
+  addSavedText: (st) => set((state) => ({ savedTexts: [st, ...state.savedTexts] })),
+  removeSavedText: (id) => set((state) => ({
+    savedTexts: state.savedTexts.filter(st => st.id !== id)
+  }))
 }));

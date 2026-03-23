@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, Modal, SafeAreaView, Image } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { useAppStore, Affirmation } from '../store/useAppStore';
-import { Play, Pause, Square, Trash2, Heart, Settings2, SkipBack, SkipForward, Repeat, Mic, Sparkles, Volume2, Music, Edit2 } from 'lucide-react-native';
+import { Play, Pause, Square, Trash2, Heart, Settings2, SkipBack, SkipForward, Repeat, Repeat1, Mic, Sparkles, Volume2, Music, Edit2, Flame, X, Share2 } from 'lucide-react-native';
+import ViewShot from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
+
+// カレンダーの日本語化設定
+LocaleConfig.locales['ja'] = {
+  monthNames: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+  dayNames: ['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'],
+  dayNamesShort: ['日','月','火','水','木','金','土'],
+  today: '今日'
+};
+LocaleConfig.defaultLocale = 'ja';
 
 // --- 時間フォーマット関数 ---
 const formatTime = (millis: number) => {
@@ -66,7 +79,7 @@ const AudioProgress = ({
 const AffirmationListItem = React.memo(({ 
   item, index, isSelected, isEditing, editTitle,
   cardBg, activeColor, borderColor, textColor, subTextColor,
-  onPress, onEditLongPress, onEditChangeText, onEditBlur, onToggleFavorite, onDelete
+  onPress, onEditLongPress, onEditChangeText, onEditBlur, onToggleFavorite, onDelete, onShare
 }: any) => {
   return (
     <TouchableOpacity 
@@ -95,6 +108,9 @@ const AffirmationListItem = React.memo(({
       <TouchableOpacity style={styles.listAction} onPress={() => onToggleFavorite(item.id)}>
         <Heart color={item.isFavorite ? '#FF3B30' : subTextColor} fill={item.isFavorite ? '#FF3B30' : 'none'} size={20} />
       </TouchableOpacity>
+      <TouchableOpacity style={styles.listAction} onPress={() => onShare(item)}>
+        <Share2 color={subTextColor} size={18} />
+      </TouchableOpacity>
       <TouchableOpacity style={styles.listAction} onPress={() => onDelete(item.id, item.title)}>
         <Trash2 color="#FF3B30" size={20} />
       </TouchableOpacity>
@@ -110,14 +126,14 @@ const AffirmationListItem = React.memo(({
          prev.textColor === next.textColor;
 });
 
-export function HomeScreen() {
+export function HomeScreen({ route, navigation }: any) {
   const store = useAppStore();
-  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType } = store;
+  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl } = store;
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
   const subTextColor = isDarkMode ? '#A0AEC0' : '#8E8E93';
-  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF';
+  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : (bgImageUrl ? 'rgba(255, 255, 255, 0.55)' : '#FFFFFF');
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
   const activeColor = '#4A3AFF'; 
   const inactiveColor = isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
@@ -126,7 +142,7 @@ export function HomeScreen() {
   const [bgmSound, setBgmSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
+  const [loopMode, setLoopMode] = useState<0 | 1 | 2>(0); // 0:なし, 1:リストループ, 2:1曲ループ
   const [speed, setSpeed] = useState(1.0);
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -134,16 +150,60 @@ export function HomeScreen() {
 
   const bgmList = [
     { id: 'none', label: 'なし' },
-    { id: 'relax', label: 'リラックス', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3' }, // Pixabayリンク切れのため代替
-    { id: 'focus', label: '集中', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3' },
-    { id: 'positive', label: 'ポジティブ', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3' }
+    { id: '528hz', label: '癒やし(528Hz)', url: 'https://archive.org/download/528Hz_201904/528Hz.mp3' },
+    { id: '432hz', label: '調和(432Hz)', url: 'https://archive.org/download/A432Hz/A432Hz.mp3' },
+    { id: 'river', label: '川', url: 'https://archive.org/download/ForestStream_201708/ForestStream.mp3' },
+    { id: 'waves', label: '海', url: 'https://cdn.freesound.org/previews/400/400632_5121236-lq.mp3' },
+    { id: 'fire', label: '焚き火', url: 'https://archive.org/download/Campfire_201811/Campfire.mp3' },
+    { id: 'relax', label: 'ピアノ(月光)', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3' },
+    { id: 'focus', label: 'ピアノ(カノン)', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3' }
   ];
   
   const [selectedId, setSelectedId] = useState<string | null>(affirmations.length > 0 ? affirmations[0].id : null);
   
   const [activeTab, setActiveTab] = useState<'all' | 'mic' | 'ai' | 'fav'>('all');
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [bgmIsPlaying, setBgmIsPlaying] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [shareItem, setShareItem] = useState<Affirmation | null>(null);
+  const viewShotRef = React.useRef<ViewShot>(null);
+
+  const handleShareButton = (item: Affirmation) => {
+    setShareItem(item);
+    setTimeout(async () => {
+      try {
+        if (viewShotRef.current && viewShotRef.current.capture) {
+          const uri = await viewShotRef.current.capture();
+          await Sharing.shareAsync(uri, {
+            dialogTitle: 'アファメーションをシェア',
+          });
+          setShareItem(null);
+        }
+      } catch (err) {
+        console.error(err);
+        Alert.alert('エラー', '画像の生成に失敗しました');
+        setShareItem(null);
+      }
+    }, 300); // UIへレンダリングされるのを待つ
+  };
+
+  // プレイリストの直接再生リクエストを受け取る
+  const playPlaylistId = route?.params?.playPlaylistId;
+  useEffect(() => {
+    if (playPlaylistId) {
+      setActivePlaylistId(playPlaylistId);
+      setActiveTab('all'); // タブの見た目をリセット
+      const pl = playlists.find(p => p.id === playPlaylistId);
+      if (pl && pl.itemIds.length > 0) {
+        setSelectedId(pl.itemIds[0]);
+        // 再生準備
+        setIsPlaying(false);
+        setIsPaused(false);
+      }
+      navigation.setParams({ playPlaylistId: undefined });
+    }
+  }, [playPlaylistId, playlists, navigation]);
 
   const adjustVol = (current: number, setter: (v: number) => void, delta: number) => {
     let next = current + delta;
@@ -160,6 +220,9 @@ export function HomeScreen() {
 
   const bgmSoundRef = React.useRef(bgmSound);
   useEffect(() => { bgmSoundRef.current = bgmSound; }, [bgmSound]);
+
+  const loopModeRef = React.useRef(loopMode);
+  useEffect(() => { loopModeRef.current = loopMode; }, [loopMode]);
 
   const [isSeeking, setIsSeeking] = useState(false);
   const [playNextSignal, setPlayNextSignal] = useState(0);
@@ -210,8 +273,19 @@ export function HomeScreen() {
       const selectedBgmObj = bgmList.find(b => b.id === bgmType);
       if (selectedBgmObj && selectedBgmObj.url) {
         try {
+          let uriToPlay = selectedBgmObj.url;
+          if (uriToPlay.startsWith('http')) {
+            // キャッシュ用ファイルパス（IDや部分的なURLを使って一意にする）
+            const localUri = FileSystem.documentDirectory + `bgm_cache_${selectedBgmObj.id}.mp3`;
+            const fileInfo = await FileSystem.getInfoAsync(localUri);
+            if (!fileInfo.exists) {
+              await FileSystem.downloadAsync(uriToPlay, localUri);
+            }
+            uriToPlay = localUri; // キャッシュしたローカルファイルを指定
+          }
+
           const { sound: createdBgm } = await Audio.Sound.createAsync(
-            { uri: selectedBgmObj.url },
+            { uri: uriToPlay },
             { shouldPlay: true, isLooping: true, volume: bgmVolume }
           );
           if (!isCancelled) setBgmSound(createdBgm);
@@ -257,6 +331,7 @@ export function HomeScreen() {
 
   const playAudio = async (item: Affirmation) => {
     try {
+      store.markListenedToday(); // ここでストリーク記録！
       if (soundRef.current) await soundRef.current.unloadAsync();
 
       let newSound;
@@ -337,9 +412,8 @@ export function HomeScreen() {
   };
   // -------------------------
 
-  const toggleLooping = async () => {
-    setIsLooping(!isLooping);
-    // iOSネイティブのループバグ回避のため setIsLoopingAsync は使わず、JS側で再生完了時に replayAsync を呼ぶ仕様に変更します
+  const toggleLooping = () => {
+    setLoopMode((prev) => ((prev + 1) % 3) as 0 | 1 | 2);
   };
 
   const handleMainPlayToggle = () => {
@@ -380,6 +454,12 @@ export function HomeScreen() {
   };
 
   const getFilteredAffirmations = () => {
+    if (activePlaylistId) {
+      const pl = playlists.find(p => p.id === activePlaylistId);
+      if (pl) {
+        return pl.itemIds.map(id => affirmations.find(a => a.id === id)).filter(Boolean) as Affirmation[];
+      }
+    }
     return affirmations.filter(item => {
       if (activeTab === 'fav') return item.isFavorite;
       if (activeTab === 'mic') return !item.title.startsWith('AI生成');
@@ -395,21 +475,38 @@ export function HomeScreen() {
   useEffect(() => {
     if (playNextSignal > 0) {
       const currentIndex = filteredList.findIndex(a => a.id === selectedId);
-      if (currentIndex !== -1 && currentIndex + 1 < filteredList.length) {
-        // 次の曲がある場合は再生
-        const nextItem = filteredList[currentIndex + 1];
-        playAudio(nextItem);
-      } else {
-        // リストの最後まできたら終了
-        setIsPlaying(false);
-        setIsPaused(false);
+      if (currentIndex !== -1) {
+        if (currentIndex + 1 < filteredList.length) {
+          // 次の曲がある場合は再生
+          const nextItem = filteredList[currentIndex + 1];
+          playAudio(nextItem);
+        } else if (loopModeRef.current === 1) {
+          // リストの最後まできたら最初の曲に戻ってループ
+          playAudio(filteredList[0]);
+        } else {
+          // ループOFFで最後まできたら終了
+          setIsPlaying(false);
+          setIsPaused(false);
+        }
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playNextSignal]);
 
   // --- List Header (Main Player View) ---
   const renderHeader = () => (
     <View style={{ paddingBottom: 16 }}>
+      {/* ストリークバッジ表示 */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 12 }}>
+        <TouchableOpacity 
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,149,0,0.15)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,149,0,0.3)' }}
+          onPress={() => setShowCalendar(true)}
+        >
+          <Flame color="#FF9500" size={20} style={{ marginRight: 6 }} />
+          <Text style={{ color: '#FF9500', fontWeight: 'bold', fontSize: 14 }}>{currentStreak || 0}日連続クリア！</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* 画面上部：再生テキスト表示領域 */}
       <View style={[styles.textAreaContainer, { backgroundColor: cardBg, borderColor }]}>
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
@@ -421,15 +518,18 @@ export function HomeScreen() {
 
       {/* プレイヤーコントロール群 */}
       <View style={styles.playerContainer}>
-        {/* 新しく独立したプログレス（時間とバー）表示 */}
         <AudioProgress 
           sound={sound} 
           onFinish={async () => {
-            if (isLooping && sound) {
-              await sound.replayAsync(); // 手動でループ処理（iOSピッチ補正バグ回避）
-            } else {
-              setPlayNextSignal(Date.now());
-            }
+             if (loopModeRef.current === 2 && sound) {
+               // 1曲だけを繰り返す
+               await sound.replayAsync();
+             } else if (loopModeRef.current === 1 && filteredList.length === 1 && sound) {
+               // リストループだがリスト内に1曲しかない場合
+               await sound.replayAsync();
+             } else {
+               setPlayNextSignal(Date.now());
+             }
           }} 
           subTextColor={subTextColor} 
           activeColor={activeColor} 
@@ -438,7 +538,11 @@ export function HomeScreen() {
         {/* メインボタン群 */}
         <View style={styles.mainControlsRow}>
           <TouchableOpacity onPress={toggleLooping} style={styles.iconButton}>
-            <Repeat color={isLooping ? activeColor : subTextColor} size={28} />
+            {loopMode === 2 ? (
+              <Repeat1 color={activeColor} size={28} />
+            ) : (
+              <Repeat color={loopMode === 1 ? activeColor : subTextColor} size={28} />
+            )}
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -502,7 +606,7 @@ export function HomeScreen() {
             <View style={styles.volRow}>
               <Text style={{color: textColor, fontSize: 13, marginRight: 8, width: 60}}>BGM選択:</Text>
               <View style={{flexDirection: 'row', flexWrap: 'wrap', flex: 1}}>
-                {bgmList.map(bgm => (
+                {bgmList.map((bgm) => (
                   <TouchableOpacity 
                     key={bgm.id} 
                     style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginBottom: 8 }]}
@@ -568,21 +672,104 @@ export function HomeScreen() {
             key={tab.id}
             style={[
               styles.tabChip,
-              { backgroundColor: activeTab === tab.id ? activeColor : inactiveColor }
+              { backgroundColor: (activeTab === tab.id && !activePlaylistId) ? activeColor : inactiveColor }
             ]}
-            onPress={() => setActiveTab(tab.id as any)}
+            onPress={() => {
+              setActiveTab(tab.id as any);
+              setActivePlaylistId(null);
+            }}
           >
-            <Text style={{ color: activeTab === tab.id ? '#FFF' : textColor, fontSize: 13, fontWeight: '600' }}>
+            <Text style={{ color: (activeTab === tab.id && !activePlaylistId) ? '#FFF' : textColor, fontSize: 13, fontWeight: '600' }}>
               {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+      {activePlaylistId ? (
+        <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
+          <Text style={{ color: activeColor, fontWeight: 'bold' }}>
+            🎵 プレイリスト「{playlists.find(p => p.id === activePlaylistId)?.name}」を再生中...
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
+  const renderCalendarModal = () => {
+    const markedDates: any = {};
+    Object.keys(listenedDays).forEach(date => {
+      if (listenedDays[date]) {
+        markedDates[date] = { selected: true, selectedColor: '#FF9500' };
+      }
+    });
+
+    const today = new Date();
+    const tzOffset = today.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(today.getTime() - tzOffset)).toISOString().split('T')[0];
+    if (markedDates[localISOTime]) {
+      markedDates[localISOTime].marked = true;
+    } else {
+      markedDates[localISOTime] = { marked: true, dotColor: activeColor };
+    }
+
+    return (
+      <Modal visible={showCalendar} animationType="slide" transparent={true}>
+        <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: textColor }]}>記録カレンダー</Text>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setShowCalendar(false)}>
+                <X color={textColor} size={28} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 24 }}>
+              <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                <Flame color="#FF9500" size={48} />
+                <Text style={{ color: textColor, fontSize: 24, fontWeight: 'bold', marginTop: 12 }}>
+                  現在 {currentStreak || 0} 日連続！
+                </Text>
+              </View>
+
+              <View style={{ borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor }}>
+                <Calendar
+                  theme={{
+                    backgroundColor: cardBg,
+                    calendarBackground: cardBg,
+                    textSectionTitleColor: subTextColor,
+                    selectedDayBackgroundColor: '#FF9500',
+                    selectedDayTextColor: '#ffffff',
+                    todayTextColor: activeColor,
+                    dayTextColor: textColor,
+                    textDisabledColor: inactiveColor,
+                    monthTextColor: textColor,
+                    arrowColor: activeColor,
+                    textDayFontWeight: '500',
+                    textMonthFontWeight: 'bold',
+                    textDayHeaderFontWeight: '500',
+                    textDayFontSize: 16,
+                    textMonthFontSize: 18,
+                    textDayHeaderFontSize: 14
+                  }}
+                  markedDates={markedDates}
+                />
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </LinearGradient>
+      </Modal>
+    );
+  };
+
   return (
-    <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
+    <View style={styles.container}>
+      {bgImageUrl ? (
+        <>
+          <Image source={{ uri: bgImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? 'rgba(10,10,26,0.7)' : 'rgba(255,255,255,0.45)' }]} />
+        </>
+      ) : (
+        <LinearGradient colors={themeColors as [string, string]} style={StyleSheet.absoluteFill} />
+      )}
       {/* 
         ★ ScrollViewで全体を囲むとネストエラー・パフォーマンス低下を招くため削除！ 
         代わりに FlatList の ListHeaderComponent を使って上部のPlayer領域を描画します。
@@ -596,7 +783,7 @@ export function HomeScreen() {
         maxToRenderPerBatch={10}
         windowSize={10}
         removeClippedSubviews={true}
-        extraData={{ isPlaying, isPaused, speed, showSettings, bgmVolume, voiceVolume, bgmType, activeTab, isLooping, bgmIsPlaying, cardBg, activeColor, textColor }}
+        extraData={{ isPlaying, isPaused, speed, showSettings, bgmVolume, voiceVolume, bgmType, activeTab, loopMode, bgmIsPlaying, cardBg, activeColor, textColor, activePlaylistId }}
         ListHeaderComponent={renderHeader}
         renderItem={({ item, index }) => (
           <AffirmationListItem 
@@ -634,17 +821,56 @@ export function HomeScreen() {
             onEditBlur={saveTitle}
             onToggleFavorite={toggleFavorite}
             onDelete={handleDelete}
+            onShare={handleShareButton}
           />
         )}
       />
-    </LinearGradient>
+      {renderCalendarModal()}
+      
+      {shareItem && (
+        <View style={{ position: 'absolute', left: -5000, top: 0 }}>
+          <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9 }}>
+            <View style={{ width: 1080, height: 1080, backgroundColor: isDarkMode ? '#0A0A1A' : '#F0F8FF', justifyContent: 'center', alignItems: 'center' }}>
+              {bgImageUrl ? (
+                <>
+                  <Image source={{ uri: bgImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? 'rgba(10,10,26,0.5)' : 'rgba(255,255,255,0.3)' }]} />
+                </>
+              ) : (
+                <LinearGradient colors={themeColors as [string, string]} style={StyleSheet.absoluteFill} />
+              )}
+              
+              <View style={{ width: '85%', padding: 40, backgroundColor: cardBg, borderRadius: 24, borderWidth: 1, borderColor }}>
+                <Text style={{ color: textColor, fontSize: 48, fontWeight: 'bold', textAlign: 'center', lineHeight: 68 }}>
+                  "{shareItem.title}"
+                </Text>
+              </View>
+              
+              <View style={{ position: 'absolute', bottom: 60, alignItems: 'center', flexDirection: 'row', backgroundColor: cardBg, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 40, borderWidth: 1, borderColor }}>
+                <Flame color="#FF9500" size={32} />
+                <Text style={{ color: textColor, fontSize: 24, fontWeight: 'bold', marginLeft: 12, marginRight: 20 }}>
+                  {currentStreak || 0} 日連続クリア！
+                </Text>
+                <Text style={{ color: subTextColor, fontSize: 20, fontWeight: '500' }}>
+                  |   AI倍速アファメーション
+                </Text>
+              </View>
+            </View>
+          </ViewShot>
+        </View>
+      )}
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  closeBtn: { padding: 4 },
   textAreaContainer: {
-    height: 300,
+    height: 320,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,

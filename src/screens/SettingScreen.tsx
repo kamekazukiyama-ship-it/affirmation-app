@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '../store/useAppStore';
-import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell } from 'lucide-react-native';
+import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Share2, Calendar as CalendarIcon } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { auth } from '../services/firebase';
+import { syncToCloud, restoreFromCloud } from '../services/cloudSync';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -15,10 +19,109 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-export function SettingScreen() {
-  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime } = useAppStore();
+export function SettingScreen({ navigation }: any) {
+  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl } = useAppStore();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isProcessingCloud, setIsProcessingCloud] = useState(false);
+  const [cloudProgressMsg, setCloudProgressMsg] = useState('');
+
+  const handlePickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('権限エラー', 'カメラロールへのアクセスを許可してください');
+      return;
+    }
+
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      allowsMultipleSelection: false,
+      quality: 0.8,
+    });
+
+    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
+      setBgImageUrl(pickerResult.assets[0].uri);
+      Alert.alert('完了', 'ホーム画面の背景画像を設定しました！\n（タブから「ホーム」に戻って確認してみてください✨）');
+    }
+  };
+
+  const handleResetImage = () => {
+    Alert.alert('確認', '背景画像をデフォルト状態（グラデーション）に戻しますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '戻す', style: 'destructive', onPress: () => setBgImageUrl(null) }
+    ]);
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    Alert.alert('ログアウト', 'ログアウトしますか？ローカルのデータは削除されません。', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: 'ログアウト', style: 'destructive', onPress: async () => await signOut(auth) }
+    ]);
+  };
+
+  const handleSyncToCloud = () => {
+    if (!user) return;
+    Alert.alert(
+      'クラウド・バックアップ',
+      '現在の端末のデータをクラウドに保存（上書き）しますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { 
+          text: 'バックアップ開始', 
+          onPress: async () => {
+            try {
+              setIsProcessingCloud(true);
+              setCloudProgressMsg('データをアップロードしています...\nそのままお待ちください');
+              await syncToCloud(user.uid, setCloudProgressMsg);
+              setIsProcessingCloud(false);
+              Alert.alert('完了', 'クラウドへのバックアップが完了しました！');
+            } catch (e: any) {
+              setIsProcessingCloud(false);
+              Alert.alert('エラー', 'バックアップに失敗しました。\n' + e.message);
+            }
+          } 
+        }
+      ]
+    );
+  };
+
+  const handleRestoreFromCloud = () => {
+    if (!user) return;
+    Alert.alert(
+      'クラウドからの復元',
+      'クラウド上のデータをこの端末に復元します。（現在の端末内のデータは上書きされます）',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { 
+          text: '復元開始', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsProcessingCloud(true);
+              setCloudProgressMsg('データをダウンロードしています...\n音声が多い場合は時間がかかります');
+              const hasData = await restoreFromCloud(user.uid, setCloudProgressMsg);
+              setIsProcessingCloud(false);
+              if (hasData) {
+                Alert.alert('完了', 'データの復元が完了しました！');
+              } else {
+                Alert.alert('お知らせ', 'クラウドにデータが見つかりませんでした。先にバックアップを行ってください。');
+              }
+            } catch (e: any) {
+              setIsProcessingCloud(false);
+              Alert.alert('エラー', '復元に失敗しました。\n' + e.message);
+            }
+          } 
+        }
+      ]
+    );
+  };
 
   const scheduleDailyNotification = async (time: Date) => {
     await Notifications.cancelAllScheduledNotificationsAsync();
@@ -78,7 +181,7 @@ export function SettingScreen() {
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
   const subTextColor = isDarkMode ? '#A0AEC0' : '#8E8E93';
-  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF';
+  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : (bgImageUrl ? 'rgba(255, 255, 255, 0.55)' : '#FFFFFF');
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
 
   return (
@@ -86,6 +189,33 @@ export function SettingScreen() {
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <Text style={[styles.title, { color: textColor }]}>設定</Text>
         <Text style={[styles.subtitle, { color: subTextColor }]}>アプリの表示モードや規約を確認できます</Text>
+
+        <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>ホーム画面の特別な背景</Text>
+          <View style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            {bgImageUrl && (
+              <View style={{ width: '100%', height: 140, borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
+                <Image source={{ uri: bgImageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              </View>
+            )}
+            <TouchableOpacity 
+              style={[styles.syncButton, { backgroundColor: '#00F2FE', marginTop: 4, flexDirection: 'row', justifyContent: 'center' }]}
+              onPress={handlePickImage}
+            >
+              <ImageIcon color="#000" size={20} style={{ marginRight: 8 }} />
+              <Text style={{ color: '#000', fontWeight: 'bold' }}>アルバムから写真を選ぶ</Text>
+            </TouchableOpacity>
+            
+            {bgImageUrl && (
+              <TouchableOpacity 
+                style={[styles.syncButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FF3B30', marginTop: 8 }]}
+                onPress={handleResetImage}
+              >
+                <Text style={{ color: '#FF3B30', fontWeight: 'bold' }}>デフォルトに戻す</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
           <Text style={[styles.sectionTitle, { color: textColor }]}>テーマ設定</Text>
@@ -152,6 +282,55 @@ export function SettingScreen() {
                 />
               )}
             </View>
+          )}
+        </View>
+
+        <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>データ同期・バックアップ</Text>
+          {user ? (
+            <>
+              <View style={styles.row}>
+                <View style={styles.rowLeft}>
+                  <Cloud color={textColor} size={24} />
+                  <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>ログイン中</Text>
+                </View>
+                <Text style={{ color: subTextColor, fontSize: 13 }}>{user.email}</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
+                onPress={handleSyncToCloud}
+              >
+                <Text style={{ color: '#000', fontWeight: 'bold' }}>今すぐクラウドにバックアップ保存</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.syncButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00F2FE' }]}
+                onPress={handleRestoreFromCloud}
+              >
+                <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>クラウドからデータを復元する</Text>
+              </TouchableOpacity>
+              
+              <View style={{ height: 1, backgroundColor: borderColor, marginVertical: 8 }} />
+              <TouchableOpacity style={styles.row} onPress={handleLogout}>
+                <View style={styles.rowLeft}>
+                  <LogOut color="#FF3B30" size={24} />
+                  <Text style={[styles.rowText, { color: '#FF3B30', marginLeft: 12 }]}>ログアウト</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.rowText, { color: subTextColor, fontSize: 13, marginBottom: 16, lineHeight: 20 }]}>
+                アカウントを作成すると、録音した音声やAIが生成したアファメーションをクラウドにバックアップし、他の端末でも復元できるようになります。
+              </Text>
+              <TouchableOpacity 
+                style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
+                onPress={() => navigation.navigate('Auth')}
+              >
+                <Text style={{ color: '#000', fontWeight: 'bold' }}>ログイン / アカウント作成</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -224,6 +403,18 @@ export function SettingScreen() {
                 </Text>
               </View>
 
+              <View style={[styles.tutorialCard, { backgroundColor: cardBg, borderColor }]}>
+                <View style={styles.tutorialHeader}>
+                  <Flame color="#FF9500" size={24} />
+                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>毎日のモチベーション維持機能</Text>
+                </View>
+                <Text style={[styles.tutorialText, { color: subTextColor }]}>
+                  ・ホーム画面上部に表示される「🔥 〇日連続」のバッジをタップすると、これまでの記録カレンダーを確認できます！{'\n'}
+                  ・「設定画面」の「ホーム画面の特別な背景」から、スマホ内の好きな画像を背景に設定できます（推しやペットの写真がおすすめ！）。{'\n'}
+                  ・各アファメーションの「シェアアイコン」を押すと、現在の日数入りでおしゃれなカード画像としてInstagramやXなどにシェアできます！
+                </Text>
+              </View>
+
               <TouchableOpacity style={styles.tutorialCloseButton} onPress={() => setShowTutorial(false)}>
                 <Text style={styles.tutorialCloseText}>使い始める</Text>
               </TouchableOpacity>
@@ -232,6 +423,14 @@ export function SettingScreen() {
           </SafeAreaView>
         </LinearGradient>
       </Modal>
+
+      {/* Cloud Processing Overlay */}
+      {isProcessingCloud && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#00F2FE" />
+          <Text style={styles.loadingText}>{cloudProgressMsg}</Text>
+        </View>
+      )}
     </LinearGradient>
   );
 }
@@ -250,6 +449,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
   rowLeft: { flexDirection: 'row', alignItems: 'center' },
   rowText: { fontSize: 16, fontWeight: '500' },
+  syncButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   closeBtn: { padding: 4 },
@@ -258,5 +463,21 @@ const styles = StyleSheet.create({
   tutorialCardTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 12 },
   tutorialText: { fontSize: 14, lineHeight: 24 },
   tutorialCloseButton: { backgroundColor: '#00F2FE', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10, marginBottom: 40 },
-  tutorialCloseText: { fontSize: 16, fontWeight: 'bold', color: '#0A0A1A' }
+  tutorialCloseText: { fontSize: 16, fontWeight: 'bold', color: '#0A0A1A' },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 24,
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    lineHeight: 24,
+  }
 });

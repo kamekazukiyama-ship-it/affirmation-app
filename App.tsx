@@ -5,7 +5,10 @@ import { auth } from './src/services/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { ActivityIndicator, View } from 'react-native';
 import { Audio } from 'expo-av';
-import { LoginScreen } from './src/screens/LoginScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { AuthScreen } from './src/screens/AuthScreen';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -38,8 +41,14 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      {/* ログインしていればメイン画面へ、していなければログイン画面へ */}
-      {user ? <AppNavigator /> : <LoginScreen />}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="MainTabs" component={AppNavigator} />
+        <Stack.Screen 
+          name="Auth" 
+          component={AuthScreen} 
+          options={{ presentation: 'modal' }} 
+        />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }

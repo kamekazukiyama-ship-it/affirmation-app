@@ -9,19 +9,27 @@ import { useAppStore } from '../store/useAppStore';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 
-export function GenerateScreen() {
+export function GenerateScreen({ route, navigation }: any) {
   const [theme, setTheme] = useState('');
   const [generatedText, setGeneratedText] = useState('');
   const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const { affirmations, addAffirmation, isDarkMode } = useAppStore();
+  const { affirmations, addAffirmation, isDarkMode, savedTexts, addSavedText } = useAppStore();
+
+  useEffect(() => {
+    if (route?.params?.presetText) {
+      setGeneratedText(route.params.presetText);
+      // navigationから呼ばれた場合は少しスクロールさせるなど（簡易版）
+    }
+  }, [route?.params?.presetText]);
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
   const subTextColor = isDarkMode ? '#A0AEC0' : '#8E8E93';
   const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF';
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
-  const inputBg = isDarkMode ? 'rgba(0, 0, 0, 0.4)' : '#FFFFFF'; // テキストボックス目立たせる
+  const activeColor = isDarkMode ? '#00F2FE' : '#007AFF';
+  const inputBg = isDarkMode ? 'rgba(0, 0, 0, 0.4)' : '#FFFFFF';
   const inputBorder = isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
 
   // --- 録音用のステート ---
@@ -138,7 +146,7 @@ export function GenerateScreen() {
 
       const generateAudio = httpsCallable(functions, 'createVoiceCloneAndAudio');
       const response = await generateAudio({ text: generatedText, audioBase64: base64Audio });
-      const data = response.data as { storagePath: string; audioUrl?: string };
+      const data = response.data as { storagePath: string; audioUrl?: string; isFallback?: boolean };
 
       let audioUrl = data.audioUrl;
       if (!audioUrl) {
@@ -164,7 +172,14 @@ export function GenerateScreen() {
         date: parseInt(id),
       });
 
-      Alert.alert('完成！🎉', 'あなた専用のAIアファメーション音声が生成され、ホームのプレイリストに追加されました！');
+      if (data.isFallback) {
+        Alert.alert(
+          '標準音声で作成しました',
+          'ElevenLabsの音声クローン作成制限（月間上限）に達したため、高音質の標準AI音声で代替生成しました。\n生成された音声はプレイリストに追加されています！\n※次月になれば再びご自身の声で生成可能です。'
+        );
+      } else {
+        Alert.alert('完成！🎉', 'あなた専用のAIアファメーション音声が生成され、ホームのプレイリストに追加されました！');
+      }
       
     } catch (error: any) {
       console.error('Audio Generation Error:', error);
@@ -254,7 +269,28 @@ export function GenerateScreen() {
 
         {generatedText ? (
           <View style={{ marginTop: 20 }}>
-            <Text style={[styles.label, { color: textColor, marginBottom: 8 }]}>作成された文章（編集可能）:</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={[styles.label, { color: textColor }]}>作成された文章（編集可能）:</Text>
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(0,122,255,0.1)' }}
+                onPress={() => {
+                  const isAlreadySaved = savedTexts.some(st => st.text === generatedText);
+                  if (isAlreadySaved) {
+                    Alert.alert('確認', 'このテキストは既に保存されています。');
+                    return;
+                  }
+                  addSavedText({
+                    id: Date.now().toString(),
+                    title: theme ? `${theme}のテーマ` : `保存テキスト (${new Date().toLocaleDateString('ja-JP')})`,
+                    text: generatedText,
+                    createdAt: Date.now()
+                  });
+                  Alert.alert('保存完了', 'ライブラリにテキストを保存しました！\n後からいつでも呼び出せます。');
+                }}
+              >
+                <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 13 }}>⭐ 保存する</Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[styles.resultInput, { backgroundColor: inputBg, color: textColor, borderColor: inputBorder }]}
               value={generatedText}

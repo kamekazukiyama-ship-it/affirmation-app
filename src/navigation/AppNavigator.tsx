@@ -2,8 +2,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
 import { RecordScreen } from '../screens/RecordScreen';
 import { GenerateScreen } from '../screens/GenerateScreen';
+import { PlaylistScreen } from '../screens/PlaylistScreen';
 import { SettingScreen } from '../screens/SettingScreen';
-import { Home, Mic, Sparkles, Settings } from 'lucide-react-native';
+import { Home, Mic, Sparkles, Settings, Library } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 
 const Tab = createBottomTabNavigator();
@@ -42,6 +43,14 @@ export function AppNavigator() {
         options={{
           title: 'ホーム',
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />
+        }}
+      />
+      <Tab.Screen 
+        name="Playlists" 
+        component={PlaylistScreen} 
+        options={{
+          title: 'ライブラリ',
+          tabBarIcon: ({ color, size }) => <Library color={color} size={size} />
         }}
       />
       <Tab.Screen 

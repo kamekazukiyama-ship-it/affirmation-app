@@ -90,8 +90,10 @@ export const createVoiceCloneAndAudio = functions
           console.log(`Voice clone created. ID: ${voiceId}`);
         } catch (cloneError: any) {
           console.error("Voice Clone Error:", cloneError?.response?.data || cloneError);
-          // クローン失敗時はデフォルト音声にフォールバック、またはエラーにする
-          throw new functions.https.HttpsError('internal', '音声クローンの作成に失敗しました: ' + (cloneError?.response?.data?.detail?.message || '不明なエラー'));
+          console.log("API制限などの理由でクローン作成に失敗したため、デフォルト音声にフォールバックします。");
+          // Rachel (デフォルト高音質Voice) のIDを使用
+          voiceId = "21m00Tcm4TlvDq8ikWAM"; 
+          isCustomVoice = false;
         }
       }
 
@@ -149,7 +151,10 @@ export const createVoiceCloneAndAudio = functions
       console.log(`Audio saved to Storage: ${filename}`);
 
       // アプリ側で getDownloadURL を使えるように Storage内のパスを返す
-      return { storagePath: filename };
+      return { 
+        storagePath: filename,
+        isFallback: !isCustomVoice && !!data.audioBase64 
+      };
 
     } catch (error: any) {
       console.error("Overall Generate Audio Error:", error);
