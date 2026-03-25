@@ -1,0 +1,97 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Dimensions } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Settings, Library, ChevronRight } from 'lucide-react-native';
+import { useAppStore } from '../store/useAppStore';
+
+const { width } = Dimensions.get('window');
+
+export function MenuScreen() {
+  const navigation = useNavigation<any>();
+  const { isDarkMode } = useAppStore();
+
+  const bgColor = isDarkMode ? '#0A0A1A' : '#F8F9FA';
+  const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
+  const subTextColor = isDarkMode ? '#8E8E93' : '#6C6C70';
+  const cardBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
+  const borderColor = isDarkMode ? '#2C2C2E' : '#E5E5EA';
+
+  const menuItems = [
+    {
+      title: 'ライブラリ',
+      description: '作成したプレイリストや保存したテキスト',
+      icon: <Library color="#007AFF" size={32} />,
+      route: 'Playlists',
+      color: '#007AFF',
+      bgColor: isDarkMode ? 'rgba(0, 122, 255, 0.1)' : '#E5F1FF'
+    },
+    {
+      title: '設定',
+      description: 'アプリの基本設定や背景画像の変更',
+      icon: <Settings color="#34C759" size={32} />,
+      route: 'Settings',
+      color: '#34C759',
+      bgColor: isDarkMode ? 'rgba(52, 199, 89, 0.1)' : '#E8F5E9'
+    }
+  ];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: textColor, marginBottom: 8, marginTop: 24 }}>
+          メニュー
+        </Text>
+        <Text style={{ fontSize: 15, color: subTextColor, marginBottom: 32 }}>
+          アプリの設定やプレイリストの管理を行います
+        </Text>
+
+        <View style={{ gap: 16 }}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate(item.route)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: cardBg,
+                padding: 20,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: borderColor,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isDarkMode ? 0.3 : 0.05,
+                shadowRadius: 8,
+                elevation: 3,
+              }}
+            >
+              <View style={{ 
+                width: 64, 
+                height: 64, 
+                borderRadius: 16, 
+                backgroundColor: item.bgColor, 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                marginRight: 16
+              }}>
+                {item.icon}
+              </View>
+              
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: textColor, marginBottom: 4 }}>
+                  {item.title}
+                </Text>
+                <Text style={{ fontSize: 13, color: subTextColor, lineHeight: 18 }}>
+                  {item.description}
+                </Text>
+              </View>
+              
+              <ChevronRight color={subTextColor} size={24} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

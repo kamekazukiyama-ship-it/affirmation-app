@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, SafeAreaView, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '../store/useAppStore';
-import { Play, Plus, BookText, Trash2, Library, CheckCircle2, Circle, X } from 'lucide-react-native';
+import { Play, Plus, BookText, Trash2, Library, CheckCircle2, Circle, X, Mic, Sparkles } from 'lucide-react-native';
 
-export function PlaylistScreen({ navigation }: any) {
-  const { isDarkMode, playlists, savedTexts, affirmations, addPlaylist, removePlaylist, removeSavedText } = useAppStore();
+export function PlaylistScreen({ route, navigation }: any) {
+  const { isDarkMode, playlists, savedTexts, affirmations, addPlaylist, removePlaylist, removeSavedText, removeAffirmation } = useAppStore();
   const themeColors = isDarkMode ? ['#0f172a', '#1e293b'] : ['#f8fafc', '#e2e8f0'];
   const textColor = isDarkMode ? '#F8FAFC' : '#1E293B';
   const subTextColor = isDarkMode ? '#94A3B8' : '#64748B';
@@ -13,14 +13,27 @@ export function PlaylistScreen({ navigation }: any) {
   const borderColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
   const activeColor = isDarkMode ? '#00F2FE' : '#007AFF';
 
-  const [activeTab, setActiveTab] = useState<'playlists' | 'texts'>('playlists');
-  const [modalVisible, setModalVisible] = useState(false);
+  const initialTab = route?.params?.initialTab;
+  const [activeTab, setActiveTab] = React.useState<'playlists' | 'texts' | 'mic' | 'ai'>('playlists');
+  const [listModalVisible, setListModalVisible] = useState(false);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+      setListModalVisible(true);
+      // 一度開いたらパラメータをリセット
+      navigation.setParams({ initialTab: undefined });
+    }
+  }, [initialTab, navigation]);
+
+  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   const handlePlayPlaylist = (playlistId: string) => {
-    navigation.navigate('Home', { playPlaylistId: playlistId });
+    setListModalVisible(false);
+    navigation.navigate('Player', { playPlaylistId: playlistId });
   };
 
   const renderPlaylist = ({ item }: any) => (
@@ -30,7 +43,8 @@ export function PlaylistScreen({ navigation }: any) {
         setEditingPlaylistId(item.id);
         setNewPlaylistName(item.name);
         setSelectedItems(item.itemIds);
-        setModalVisible(true);
+        setListModalVisible(false);
+        setTimeout(() => setCreateModalVisible(true), 350);
       }}
     >
       <View style={styles.cardIconBox}>
@@ -56,6 +70,7 @@ export function PlaylistScreen({ navigation }: any) {
     <TouchableOpacity 
       style={[styles.card, { backgroundColor: cardBg, borderColor }]}
       onPress={() => {
+        setListModalVisible(false);
         navigation.navigate('Generate', { presetText: item.text });
       }}
     >
@@ -74,68 +89,168 @@ export function PlaylistScreen({ navigation }: any) {
     </TouchableOpacity>
   );
 
-  return (
-    <LinearGradient colors={themeColors as any} style={styles.container}>
-      <Text style={[styles.headerTitle, { color: textColor }]}>ライブラリ</Text>
-      
-      {/* タブ切り替え */}
-      <View style={styles.tabsRow}>
-        <TouchableOpacity 
-          style={[styles.tabBtn, activeTab === 'playlists' ? { backgroundColor: activeColor } : { backgroundColor: cardBg, borderColor }]}
-          onPress={() => setActiveTab('playlists')}
-        >
-          <Text style={{ color: activeTab === 'playlists' ? '#FFF' : textColor, fontWeight: 'bold' }}>プレイリスト</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tabBtn, activeTab === 'texts' ? { backgroundColor: activeColor } : { backgroundColor: cardBg, borderColor }]}
-          onPress={() => setActiveTab('texts')}
-        >
-          <Text style={{ color: activeTab === 'texts' ? '#FFF' : textColor, fontWeight: 'bold' }}>保存テキスト</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 新規作成ボタン */}
+  const renderAudio = ({ item }: any) => {
+    const isAi = item.title.includes('AI生成');
+    return (
       <TouchableOpacity 
-        style={[styles.createBtn, { borderColor: activeColor, backgroundColor: cardBg }]}
+        style={[styles.card, { backgroundColor: cardBg, borderColor }]}
         onPress={() => {
-          if (activeTab === 'playlists') {
-            setEditingPlaylistId(null);
-            setNewPlaylistName('');
-            setSelectedItems([]);
-            setModalVisible(true);
-          } else {
-            navigation.navigate('Generate');
-          }
+          setListModalVisible(false);
+          navigation.navigate('Player', { playAudioId: item.id, triggerTab: activeTab });
         }}
       >
-        <Plus color={activeColor} size={20} style={{ marginRight: 8 }} />
-        <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>
-          {activeTab === 'playlists' ? '新規プレイリストを作成' : 'AI生成画面でテキストを保存'}
-        </Text>
+        <View style={[styles.cardIconBox, { backgroundColor: isAi ? 'rgba(0,122,255,0.1)' : 'rgba(255,59,48,0.1)' }]}>
+          {isAi ? <Sparkles color="#007AFF" size={24} /> : <Mic color="#FF3B30" size={24} />}
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Text>
+          <Text style={[styles.cardSub, { color: subTextColor }]} numberOfLines={2}>
+            {item.text || '録音データ'}
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={[styles.playBtn, { backgroundColor: isAi ? '#007AFF' : '#FF3B30' }]} 
+          onPress={() => {
+            setListModalVisible(false);
+            navigation.navigate('Player', { playAudioId: item.id, triggerTab: activeTab });
+          }}
+        >
+          <Play color="#FFF" size={20} style={{ marginLeft: 3 }} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.delBtn} onPress={() => removeAffirmation(item.id)}>
+          <Trash2 color="#FF3B30" size={20} />
+        </TouchableOpacity>
       </TouchableOpacity>
+    );
+  };
 
-      <FlatList<any>
-        data={activeTab === 'playlists' ? playlists : savedTexts}
-        keyExtractor={item => item.id}
-        renderItem={activeTab === 'playlists' ? renderPlaylist : renderText}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={{ color: subTextColor, textAlign: 'center', lineHeight: 24 }}>
-              {activeTab === 'playlists' 
-                ? 'まだプレイリストがありません。\nお気に入りの音声をまとめて作成しましょう！' 
-                : 'まだ保存されたテキストがありません。\nAI生成画面で気に入った文章を保存できます！'}
+  return (
+    <LinearGradient colors={themeColors as any} style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 }}>
+          <Text style={[styles.headerTitle, { color: textColor, marginHorizontal: 0, marginTop: 0, marginBottom: 0 }]}>ライブラリ</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Menu')} style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor }}>
+            <X color={textColor} size={24} />
+          </TouchableOpacity>
+        </View>
+        
+        {/* 四分割グリッドメニュー */}
+        <View style={styles.gridContainer}>
+          <TouchableOpacity 
+            style={[styles.gridCard, { backgroundColor: cardBg, borderColor }]}
+            onPress={() => { setActiveTab('playlists'); setListModalVisible(true); }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(0,122,255,0.1)' : '#E5F1FF' }]}>
+              <Library color="#007AFF" size={36} />
+            </View>
+            <Text style={[styles.gridTitle, { color: textColor }]}>プレイリスト</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{playlists.length} 個のフォルダ</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.gridCard, { backgroundColor: cardBg, borderColor }]}
+            onPress={() => { setActiveTab('mic'); setListModalVisible(true); }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(255,59,48,0.1)' : '#FFEBEB' }]}>
+              <Mic color="#FF3B30" size={36} />
+            </View>
+            <Text style={[styles.gridTitle, { color: textColor }]}>録音データ</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{affirmations.filter(a => !a.title.includes('AI生成')).length} 個の録音</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.gridCard, { backgroundColor: cardBg, borderColor }]}
+            onPress={() => { setActiveTab('ai'); setListModalVisible(true); }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(0,122,255,0.1)' : '#E5F1FF' }]}>
+              <Sparkles color="#007AFF" size={36} />
+            </View>
+            <Text style={[styles.gridTitle, { color: textColor }]}>AI生成データ</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{affirmations.filter(a => a.title.includes('AI生成')).length} 個のAI</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.gridCard, { backgroundColor: cardBg, borderColor }]}
+            onPress={() => { setActiveTab('texts'); setListModalVisible(true); }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(52,199,89,0.1)' : '#E8F5E9' }]}>
+              <BookText color="#34C759" size={36} />
+            </View>
+            <Text style={[styles.gridTitle, { color: textColor }]}>保存テキスト</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{savedTexts.length} 個の文章</Text>
+          </TouchableOpacity>
+        </View>
+
+      {/* 各カテゴリの詳細リストを表示するモーダル */}
+      <Modal visible={listModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setListModalVisible(false)}>
+        <View style={[styles.modalContainer, { backgroundColor: isDarkMode ? '#0f172a' : '#f8fafc' }]}>
+          <View style={[styles.modalHeader, { marginBottom: 16 }]}>
+            <TouchableOpacity onPress={() => setListModalVisible(false)} style={{ padding: 4 }}>
+              <X color={textColor} size={28} />
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: textColor }]}>
+              {activeTab === 'playlists' ? 'プレイリスト' : activeTab === 'texts' ? '保存テキスト' : activeTab === 'mic' ? '録音データ' : 'AI生成データ'}
             </Text>
+            <View style={{ width: 36 }} />
           </View>
-        }
-      />
+
+          {/* 新規作成ボタン */}
+          {(activeTab === 'playlists' || activeTab === 'texts') && (
+            <TouchableOpacity 
+              style={[styles.createBtn, { borderColor: activeColor, backgroundColor: cardBg }]}
+              onPress={() => {
+                if (activeTab === 'playlists') {
+                  setEditingPlaylistId(null);
+                  setNewPlaylistName('');
+                  setSelectedItems([]);
+                  setListModalVisible(false);
+                  setTimeout(() => setCreateModalVisible(true), 350);
+                } else {
+                  setListModalVisible(false); // モーダルを閉じてから遷移
+                  navigation.navigate('Generate');
+                }
+              }}
+            >
+              <Plus color={activeColor} size={20} style={{ marginRight: 8 }} />
+              <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>
+                {activeTab === 'playlists' ? '新規作成' : 'AI生成画面で保存する'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <FlatList<any>
+            data={
+              activeTab === 'playlists' ? playlists : 
+              activeTab === 'texts' ? savedTexts :
+              activeTab === 'mic' ? affirmations.filter(a => !a.title.includes('AI生成')) :
+              affirmations.filter(a => a.title.includes('AI生成'))
+            }
+            keyExtractor={item => item.id}
+            renderItem={
+              activeTab === 'playlists' ? renderPlaylist :
+              activeTab === 'texts' ? renderText :
+              renderAudio
+            }
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyBox}>
+                <Text style={{ color: subTextColor, textAlign: 'center', lineHeight: 24 }}>データがありません</Text>
+              </View>
+            }
+          />
+        </View>
+      </Modal>
 
       {/* プレイリスト作成モーダル */}
-      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalVisible(false)}>
+      <Modal visible={createModalVisible} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setCreateModalVisible(false)}>
         <View style={[styles.modalContainer, { backgroundColor: isDarkMode ? '#0f172a' : '#f8fafc' }]}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ padding: 4 }}>
+            <TouchableOpacity onPress={() => setCreateModalVisible(false)} style={{ padding: 4 }}>
               <X color={textColor} size={28} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: textColor }]}>プレイリスト作成</Text>
@@ -161,7 +276,7 @@ export function PlaylistScreen({ navigation }: any) {
                     createdAt: Date.now(),
                   });
                 }
-                setModalVisible(false);
+                setCreateModalVisible(false);
               }}
             >
               <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>保存</Text>
@@ -203,6 +318,7 @@ export function PlaylistScreen({ navigation }: any) {
         </View>
       </Modal>
 
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -210,8 +326,13 @@ export function PlaylistScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
   headerTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
-  tabsRow: { flexDirection: 'row', marginBottom: 20, gap: 12 },
-  tabBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  gridContainer: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 10, gap: 16 },
+  gridCard: { width: '47%', paddingVertical: 32, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  gridIconBox: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  gridTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
+  gridSub: { fontSize: 12, textAlign: 'center' },
+  tabsRow: { flexDirection: 'row', gap: 12, paddingRight: 20 },
+  tabBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1, minWidth: 100 },
   createBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', marginBottom: 20 },
   card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
   cardIconBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,122,255,0.1)', justifyContent: 'center', alignItems: 'center' },
@@ -221,7 +342,7 @@ const styles = StyleSheet.create({
   playBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   delBtn: { padding: 12, marginLeft: 4 },
   emptyBox: { padding: 40, alignItems: 'center', justifyContent: 'center', marginTop: 40 },
-  modalContainer: { flex: 1, padding: 20, paddingTop: 60 },
+  modalContainer: { flex: 1, padding: 20, paddingTop: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 18, fontWeight: 'bold' },
   modalInput: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16 },

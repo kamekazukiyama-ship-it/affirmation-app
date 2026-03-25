@@ -1,7 +1,9 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { HomeScreen } from '../screens/HomeScreen';
+import { DashboardScreen } from '../screens/DashboardScreen';
+import { PlayerScreen } from '../screens/PlayerScreen';
 import { RecordScreen } from '../screens/RecordScreen';
 import { GenerateScreen } from '../screens/GenerateScreen';
+import { MenuScreen } from '../screens/MenuScreen';
 import { PlaylistScreen } from '../screens/PlaylistScreen';
 import { SettingScreen } from '../screens/SettingScreen';
 import { Home, Mic, Sparkles, Settings, Library } from 'lucide-react-native';
@@ -38,18 +40,18 @@ export function AppNavigator() {
       }}
     >
       <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
+        name="Dashboard" 
+        component={DashboardScreen} 
         options={{
           title: 'ホーム',
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />
         }}
       />
       <Tab.Screen 
-        name="Playlists" 
-        component={PlaylistScreen} 
+        name="Player" 
+        component={PlayerScreen} 
         options={{
-          title: 'ライブラリ',
+          title: 'プレイヤー',
           tabBarIcon: ({ color, size }) => <Library color={color} size={size} />
         }}
       />
@@ -70,11 +72,27 @@ export function AppNavigator() {
         }}
       />
       <Tab.Screen 
+        name="Menu" 
+        component={MenuScreen} 
+        options={{
+          title: 'メニュー',
+          tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />
+        }}
+      />
+      <Tab.Screen 
+        name="Playlists" 
+        component={PlaylistScreen} 
+        options={{
+          tabBarItemStyle: { display: 'none' },
+          headerShown: false
+        }}
+      />
+      <Tab.Screen 
         name="Settings" 
         component={SettingScreen} 
         options={{
-          title: '設定',
-          tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />
+          tabBarItemStyle: { display: 'none' },
+          headerShown: false
         }}
       />
     </Tab.Navigator>

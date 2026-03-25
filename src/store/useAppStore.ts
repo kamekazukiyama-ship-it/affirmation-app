@@ -24,6 +24,12 @@ export interface SavedText {
   createdAt: number;
 }
 
+export interface CustomBgm {
+  id: string;
+  name: string;
+  uri: string;
+}
+
 interface AppState {
   affirmations: Affirmation[];
   playlists: Playlist[];
@@ -56,24 +62,38 @@ interface AppState {
   markListenedToday: () => void;
   bgImageUrl: string | null;
   setBgImageUrl: (url: string | null) => void;
+  elevenLabsApiKey: string | null;
+  setElevenLabsApiKey: (key: string | null) => void;
+
+  customBgms: CustomBgm[];
+  addCustomBgm: (bgm: CustomBgm) => void;
+  removeCustomBgm: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   affirmations: [],
   playlists: [],
   savedTexts: [],
-  isDarkMode: true, // デフォルトはダークモード
+  isDarkMode: false, // デフォルトはライトモード（写真背景推奨）
   bgmType: 'none',
   voiceVolume: 1.0,
   bgmVolume: 0.15,
   isNotificationEnabled: false,
   notificationTime: new Date(new Date().setHours(8, 0, 0, 0)), // デフォルトは朝8時
-  bgImageUrl: null,
-  setBgImageUrl: (url) => set({ bgImageUrl: url }),
   
   listenedDays: {},
   currentStreak: 0,
   longestStreak: 0,
+  
+  bgImageUrl: null,
+  setBgImageUrl: (url) => set({ bgImageUrl: url }),
+
+  elevenLabsApiKey: null,
+  setElevenLabsApiKey: (key) => set({ elevenLabsApiKey: key }),
+
+  customBgms: [],
+  addCustomBgm: (bgm) => set((state) => ({ customBgms: [...state.customBgms, bgm] })),
+  removeCustomBgm: (id) => set((state) => ({ customBgms: state.customBgms.filter(b => b.id !== id) })),
 
   markListenedToday: () => set((state) => {
     // ローカルタイムゾーンでの YYYY-MM-DD を取得

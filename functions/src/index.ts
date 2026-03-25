@@ -52,21 +52,30 @@ export const createVoiceCloneAndAudio = functions
     try {
       const text = data.text;
       const audioBase64 = data.audioBase64; // (任意) クローン元の音声データ
+      const systemVoiceId = data.systemVoiceId || "Xb7hH8MSUJpSbSDYk0k2"; // (指定がない場合はAlice)
       
       if (!text) {
         throw new functions.https.HttpsError('invalid-argument', '読み上げるテキストがありません。');
       }
 
-      const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+      const elevenLabsApiKey = data.userApiKey || process.env.ELEVENLABS_API_KEY;
       if (!elevenLabsApiKey) {
         throw new functions.https.HttpsError('internal', 'ElevenLabsのAPIキーが設定されていません。');
       }
 
-      let voiceId = "21m00Tcm4TlvDq8ikWAM"; // デフォルト声 (Rachel)
+      let voiceId = systemVoiceId;
       let isCustomVoice = false;
 
       // 音声データがある場合は一時的なクローンを作成
       if (audioBase64) {
+        if (!data.userApiKey) {
+           // 開発者（無料ユーザー）キーによるクローン作成は絶対禁止とする（上限超過防止）
+           throw new functions.https.HttpsError(
+             'permission-denied', 
+             'あなた自身の声（クローン）を使用するには、ElevenLabsの無料APIキーを取得して設定してください。'
+           );
+        }
+
         const audioBuffer = Buffer.from(audioBase64, 'base64');
         const form = new FormData();
         const cloneName = `TempClone_${uuidv4().substring(0, 8)}`;
@@ -90,10 +99,11 @@ export const createVoiceCloneAndAudio = functions
           console.log(`Voice clone created. ID: ${voiceId}`);
         } catch (cloneError: any) {
           console.error("Voice Clone Error:", cloneError?.response?.data || cloneError);
-          console.log("API制限などの理由でクローン作成に失敗したため、デフォルト音声にフォールバックします。");
-          // Rachel (デフォルト高音質Voice) のIDを使用
-          voiceId = "21m00Tcm4TlvDq8ikWAM"; 
-          isCustomVoice = false;
+          const errMsg = cloneError?.response?.data?.detail?.message || cloneError.message || '不明なエラー';
+          throw new functions.https.HttpsError(
+            'resource-exhausted',
+            `音声クローンの作成に失敗しました。（ElevenLabs API制限等の可能性があります）\n詳細: ${errMsg}`
+          );
         }
       }
 

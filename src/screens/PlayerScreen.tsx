@@ -4,9 +4,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { useAppStore, Affirmation } from '../store/useAppStore';
-import { Play, Pause, Square, Trash2, Heart, Settings2, SkipBack, SkipForward, Repeat, Repeat1, Mic, Sparkles, Volume2, Music, Edit2, Flame, X, Share2 } from 'lucide-react-native';
+import { Play, Pause, Square, Trash2, Heart, Settings2, SkipBack, SkipForward, Repeat, Repeat1, Mic, Sparkles, Volume2, Music, Edit2, Flame, X, Share2, Plus } from 'lucide-react-native';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
@@ -126,9 +127,9 @@ const AffirmationListItem = React.memo(({
          prev.textColor === next.textColor;
 });
 
-export function HomeScreen({ route, navigation }: any) {
+export function PlayerScreen({ route, navigation }: any) {
   const store = useAppStore();
-  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl } = store;
+  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl, customBgms, addCustomBgm, removeCustomBgm } = store;
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
@@ -158,6 +159,33 @@ export function HomeScreen({ route, navigation }: any) {
     { id: 'relax', label: 'ピアノ(月光)', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3' },
     { id: 'focus', label: 'ピアノ(カノン)', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3' }
   ];
+
+  const handleAddCustomBgm = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: false,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        // ファイルが一意かつ再起動後も読めるようにドキュメントフォルダへコピー
+        const ext = asset.name.split('.').pop() || 'tmp';
+        const localUri = FileSystem.documentDirectory + `custom_bgm_${Date.now()}.${ext}`;
+        await FileSystem.copyAsync({ from: asset.uri, to: localUri });
+        
+        const newBgm = {
+          id: `custom_${Date.now()}`,
+          name: asset.name,
+          uri: localUri,
+        };
+        addCustomBgm(newBgm);
+        store.setBgmType(newBgm.id);
+      }
+    } catch (e) {
+      console.warn('Custom BGM Add Error', e);
+      Alert.alert('エラー', '音声ファイルの読み込みに失敗しました。');
+    }
+  };
   
   const [selectedId, setSelectedId] = useState<string | null>(affirmations.length > 0 ? affirmations[0].id : null);
   
@@ -204,6 +232,24 @@ export function HomeScreen({ route, navigation }: any) {
       navigation.setParams({ playPlaylistId: undefined });
     }
   }, [playPlaylistId, playlists, navigation]);
+
+  // 特定の音声（録音・AIなど）の直接再生リクエストを受け取る
+  const playAudioId = route?.params?.playAudioId;
+  const triggerTab = route?.params?.triggerTab;
+  useEffect(() => {
+    if (playAudioId) {
+      if (triggerTab) {
+        setActiveTab(triggerTab);
+      } else {
+        setActiveTab('all');
+      }
+      setActivePlaylistId(null);
+      setSelectedId(playAudioId);
+      setIsPlaying(false);
+      setIsPaused(false);
+      navigation.setParams({ playAudioId: undefined, triggerTab: undefined });
+    }
+  }, [playAudioId, triggerTab, navigation]);
 
   const adjustVol = (current: number, setter: (v: number) => void, delta: number) => {
     let next = current + delta;
@@ -270,20 +316,26 @@ export function HomeScreen({ route, navigation }: any) {
         return;
       }
       
+      let uriToPlay = '';
       const selectedBgmObj = bgmList.find(b => b.id === bgmType);
-      if (selectedBgmObj && selectedBgmObj.url) {
-        try {
-          let uriToPlay = selectedBgmObj.url;
-          if (uriToPlay.startsWith('http')) {
-            // キャッシュ用ファイルパス（IDや部分的なURLを使って一意にする）
-            const localUri = FileSystem.documentDirectory + `bgm_cache_${selectedBgmObj.id}.mp3`;
-            const fileInfo = await FileSystem.getInfoAsync(localUri);
-            if (!fileInfo.exists) {
-              await FileSystem.downloadAsync(uriToPlay, localUri);
-            }
-            uriToPlay = localUri; // キャッシュしたローカルファイルを指定
-          }
+      const customBgmObj = customBgms.find(b => b.id === bgmType);
 
+      if (selectedBgmObj && selectedBgmObj.url) {
+        uriToPlay = selectedBgmObj.url;
+        if (uriToPlay.startsWith('http')) {
+          const localUri = FileSystem.documentDirectory + `bgm_cache_${selectedBgmObj.id}.mp3`;
+          const fileInfo = await FileSystem.getInfoAsync(localUri);
+          if (!fileInfo.exists) {
+            await FileSystem.downloadAsync(uriToPlay, localUri);
+          }
+          uriToPlay = localUri;
+        }
+      } else if (customBgmObj && customBgmObj.uri) {
+        uriToPlay = customBgmObj.uri;
+      }
+
+      if (uriToPlay) {
+        try {
           const { sound: createdBgm } = await Audio.Sound.createAsync(
             { uri: uriToPlay },
             { shouldPlay: true, isLooping: true, volume: bgmVolume }
@@ -493,6 +545,24 @@ export function HomeScreen({ route, navigation }: any) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playNextSignal]);
 
+  const MemoizedSpeedSlider = React.useMemo(() => {
+    const MemoSlider = React.memo(({ currentSpeed, onCommit, active, inactive }: any) => (
+      <Slider
+        style={{ width: '100%', height: 40 }}
+        minimumValue={1}
+        maximumValue={10}
+        step={0.1}
+        value={currentSpeed}
+        onSlidingComplete={onCommit}
+        minimumTrackTintColor={active}
+        maximumTrackTintColor={inactive}
+        thumbTintColor={active}
+      />
+    ), (prev, next) => prev.currentSpeed === next.currentSpeed && prev.active === next.active);
+    
+    return <MemoSlider currentSpeed={speed} onCommit={setSpeed} active={activeColor} inactive={inactiveColor} />;
+  }, [speed, activeColor, inactiveColor]);
+
   // --- List Header (Main Player View) ---
   const renderHeader = () => (
     <View style={{ paddingBottom: 16 }}>
@@ -516,8 +586,8 @@ export function HomeScreen({ route, navigation }: any) {
         </ScrollView>
       </View>
 
-      {/* プレイヤーコントロール群 */}
-      <View style={styles.playerContainer}>
+      {/* プレイヤーコントロール群 (Boxed) */}
+      <View style={[styles.playerContainer, { backgroundColor: cardBg, borderColor, padding: 20, borderRadius: 20, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 }]}>
         <AudioProgress 
           sound={sound} 
           onFinish={async () => {
@@ -536,7 +606,7 @@ export function HomeScreen({ route, navigation }: any) {
         />
 
         {/* メインボタン群 */}
-        <View style={styles.mainControlsRow}>
+        <View style={[styles.mainControlsRow, { marginTop: 16 }]}>
           <TouchableOpacity onPress={toggleLooping} style={styles.iconButton}>
             {loopMode === 2 ? (
               <Repeat1 color={activeColor} size={28} />
@@ -544,52 +614,49 @@ export function HomeScreen({ route, navigation }: any) {
               <Repeat color={loopMode === 1 ? activeColor : subTextColor} size={28} />
             )}
           </TouchableOpacity>
-          
+
           <TouchableOpacity 
-            style={[styles.playPauseButton, { backgroundColor: activeColor }]} 
+            style={[styles.playPauseButton, { backgroundColor: activeColor, width: 72, height: 72, borderRadius: 36, shadowColor: activeColor, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 }]} 
             onPress={handleMainPlayToggle}
           >
-            {(isPlaying && !isPaused) ? <Pause color="#FFF" size={36} /> : <Play color="#FFF" size={36} style={{ marginLeft: 6 }} />}
+            {(isPlaying && !isPaused) ? <Pause color="#FFF" size={32} /> : <Play color="#FFF" size={32} style={{ marginLeft: 6 }} />}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={stopAudio} style={styles.iconButton}>
-            <Square color={isPlaying ? '#FF3B30' : subTextColor} size={28} />
-          </TouchableOpacity>
+          <View style={{ alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 }}>
+            <TouchableOpacity onPress={() => setSpeed(Math.min(10, Math.floor(speed) + 1))} style={{ paddingHorizontal: 16 }}>
+              <Text style={{ color: activeColor, fontSize: 20, fontWeight: 'bold' }}>+</Text>
+            </TouchableOpacity>
+            <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16, marginVertical: 4 }}>{speed.toFixed(1)}x</Text>
+            <TouchableOpacity onPress={() => setSpeed(Math.max(1, Math.floor(speed) - 1))} style={{ paddingHorizontal: 16 }}>
+              <Text style={{ color: activeColor, fontSize: 22, fontWeight: 'bold', lineHeight: 22 }}>-</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* 倍速ボタン群 */}
-        <View style={styles.speedSection}>
-          <Text style={[styles.speedLabel, { color: textColor }]}>再生速度: {speed.toFixed(1)}x</Text>
-          <View style={styles.speedButtonsGrid}>
-            <View style={styles.speedButtonsRow}>
-              {[1, 2, 3, 4, 5].map(s => (
-                <TouchableOpacity
-                  key={s}
-                  style={[
-                    styles.speedChip, 
-                    { backgroundColor: speed === s ? activeColor : inactiveColor, borderColor: speed === s ? activeColor : borderColor }
-                  ]}
-                  onPress={() => setSpeed(s)}
-                >
-                  <Text style={{ color: speed === s ? '#FFF' : textColor, fontWeight: 'bold', fontSize: 13 }}>{s}x</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.speedButtonsRow}>
-              {[6, 7, 8, 9, 10].map(s => (
-                <TouchableOpacity
-                  key={s}
-                  style={[
-                    styles.speedChip, 
-                    { backgroundColor: speed === s ? activeColor : inactiveColor, borderColor: speed === s ? activeColor : borderColor }
-                  ]}
-                  onPress={() => setSpeed(s)}
-                >
-                  <Text style={{ color: speed === s ? '#FFF' : textColor, fontWeight: 'bold', fontSize: 13 }}>{s}x</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+        {/* 倍速・スライダー設定群 */}
+        <View style={[styles.speedSection, { backgroundColor: cardBg, borderColor, padding: 16, borderRadius: 16, borderWidth: 1, marginTop: 12 }]}>
+          <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 12 }}>再生速度</Text>
+          
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            {[1, 2, 4, 6, 10].map(s => (
+              <TouchableOpacity
+                key={s}
+                style={[
+                  styles.speedChip, 
+                  { 
+                    backgroundColor: speed === s ? activeColor : inactiveColor, 
+                    borderColor: speed === s ? activeColor : borderColor,
+                    flex: 1,
+                    marginHorizontal: 4,
+                  }
+                ]}
+                onPress={() => setSpeed(s)}
+              >
+                <Text style={{ color: speed === s ? '#FFF' : textColor, fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>{s}x</Text>
+              </TouchableOpacity>
+            ))}
           </View>
+
         </View>
 
         {/* BGM・音量設定トグル */}
@@ -615,6 +682,35 @@ export function HomeScreen({ route, navigation }: any) {
                     <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 12, fontWeight: '500'}}>{bgm.label}</Text>
                   </TouchableOpacity>
                 ))}
+                {customBgms.map((bgm) => (
+                  <View key={bgm.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginRight: 8 }}>
+                    <TouchableOpacity 
+                      style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginRight: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
+                      onPress={() => store.setBgmType(bgm.id)}
+                    >
+                      <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 12, fontWeight: '500'}} numberOfLines={1} ellipsizeMode="middle">{bgm.name.length > 8 ? bgm.name.substring(0,8)+'...' : bgm.name}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.bgmChip, { backgroundColor: '#FF3B30', paddingHorizontal: 8, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
+                      onPress={() => {
+                        if (bgmType === bgm.id) store.setBgmType('none');
+                        removeCustomBgm(bgm.id);
+                        FileSystem.deleteAsync(bgm.uri, { idempotent: true });
+                      }}
+                    >
+                      <X color="#FFF" size={14} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity 
+                  style={[styles.bgmChip, { backgroundColor: inactiveColor, marginBottom: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor }]}
+                  onPress={handleAddCustomBgm}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Plus color={textColor} size={14} style={{ marginRight: 4 }} />
+                    <Text style={{color: textColor, fontSize: 12, fontWeight: '500'}}>端末から追加</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
             <View style={styles.volRow}>
@@ -870,7 +966,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   closeBtn: { padding: 4 },
   textAreaContainer: {
-    height: 320,
+    height: 280,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,

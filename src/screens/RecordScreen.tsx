@@ -4,8 +4,7 @@ import { Audio } from 'expo-av';
 import { Mic, Square, Sparkles, AlertCircle } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 import { LinearGradient } from 'expo-linear-gradient';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../services/firebase';
+import { generateLongAffirmation, SubjectType } from '../utils/affirmationGenerator';
 
 export function RecordScreen() {
   const { addAffirmation, isDarkMode } = useAppStore();
@@ -15,6 +14,8 @@ export function RecordScreen() {
 
   const [affirmationText, setAffirmationText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [subjectType, setSubjectType] = useState<SubjectType>('I');
+  const [customName, setCustomName] = useState('');
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
@@ -22,8 +23,10 @@ export function RecordScreen() {
   const inputBg = isDarkMode ? 'rgba(0, 0, 0, 0.3)' : '#F2F2F7';
   const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF';
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
+  const activeColor = isDarkMode ? '#00F2FE' : '#007AFF';
+  const inputBorder = isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
 
-  const presets = ['自己肯定', '健康', '人間関係', '目標達成', '能力'];
+  const presets = ['自己肯定感', '感謝', '目標達成', '癒やし', 'モチベーション', '集中力', 'リラックス', 'ポジティブ', '成功', '運', '人間関係', '行動力'];
 
   // タイマー処理
   useEffect(() => {
@@ -47,12 +50,9 @@ export function RecordScreen() {
   const handleAutoGenerate = async (preset: string) => {
     setIsGenerating(true);
     try {
-      const generateAffirmation = httpsCallable(functions, 'createAffirmation');
-      const response = await generateAffirmation({ theme: preset + 'についてのアファメーションをして' });
-      const data = response.data as { text: string };
-      // 句読点（。）で改行し、さらに1行空ける（\n\n）
-      const formattedText = data.text.replace(/。/g, '。\n\n').trim();
-      setAffirmationText(formattedText);
+      // ローカルジェネレーターで即時テキスト作成（API通信不要・完全無料）
+      const text = generateLongAffirmation(preset, subjectType, customName);
+      setAffirmationText(text.trim());
     } catch (error: any) {
       console.error('Generation Error:', error);
       Alert.alert('エラー', '自動生成に失敗しました。');
@@ -145,26 +145,39 @@ export function RecordScreen() {
         <Text style={[styles.title, { color: textColor }]}>自分の声を録音する</Text>
         <Text style={[styles.subtitle, { color: subTextColor }]}>ポジティブな自己暗示（アファメーション）を吹き込んでみましょう</Text>
         
-        {/* スクロール・編集可能なテキストボックス */}
-        <View style={styles.textInputWrapper}>
-          <TextInput
-            style={[styles.textArea, { backgroundColor: inputBg, color: textColor, borderColor }]}
-            multiline
-            placeholder="読みたいアファメーションを入力、またはAIで自動生成してください"
-            placeholderTextColor={subTextColor}
-            value={affirmationText}
-            onChangeText={setAffirmationText}
-          />
+        {/* ステップ1: 主語選択 */}
+        <View style={{ marginBottom: 16, marginTop: 8 }}>
+          <Text style={[styles.presetLabel, { color: textColor, marginBottom: 8 }]}>① 主語のパターンを選びます</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity onPress={() => setSubjectType('I')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'I' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'I' ? activeColor : borderColor }]}>
+              <Text style={{ color: subjectType === 'I' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'I' ? 'bold' : 'normal' }}>私</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setSubjectType('YOU')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'YOU' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'YOU' ? activeColor : borderColor }]}>
+              <Text style={{ color: subjectType === 'YOU' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'YOU' ? 'bold' : 'normal' }}>あなた</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setSubjectType('NAME')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'NAME' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'NAME' ? activeColor : borderColor }]}>
+              <Text style={{ color: subjectType === 'NAME' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'NAME' ? 'bold' : 'normal' }}>名前</Text>
+            </TouchableOpacity>
+          </View>
+          {subjectType === 'NAME' && (
+            <TextInput
+              style={{ backgroundColor: inputBg, color: textColor, borderColor: inputBorder, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 8 }}
+              placeholder="呼ばれたい名前を入力 (例: カズキ)"
+              placeholderTextColor={subTextColor}
+              value={customName}
+              onChangeText={setCustomName}
+            />
+          )}
         </View>
 
         {/* AIワンタップ生成ボタン */}
         <View style={styles.presetContainer}>
-          <Text style={[styles.presetLabel, { color: textColor }]}>AIで自動作成：</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8 }}>
+          <Text style={[styles.presetLabel, { color: textColor }]}>② テーマを選んでAIで自動作成：</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 8 }}>
             {presets.map(preset => (
               <TouchableOpacity
                 key={preset}
-                style={[styles.presetButton, { backgroundColor: cardBg, borderColor }]}
+                style={[styles.presetButton, { backgroundColor: cardBg, borderColor, marginBottom: 8, marginRight: 8 }]}
                 onPress={() => handleAutoGenerate(preset)}
                 disabled={isGenerating}
               >
@@ -172,8 +185,29 @@ export function RecordScreen() {
                 <Text style={{ color: textColor, marginLeft: 6, fontSize: 13, fontWeight: '500' }}>{preset}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+          <Text style={[styles.presetLabel, { color: textColor, marginVertical: 0 }]}>③ 最後に、自由に編集します：</Text>
+          {/* 文字数カウンター */}
+          <View style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: inputBorder }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: affirmationText.length >= 200 ? '#FF3B30' : subTextColor }}>
+              {affirmationText.length} / 200
+            </Text>
+          </View>
+        </View>
+        
+        {/* スクロール・編集可能なテキストボックス */}
+        <TextInput
+          style={[styles.textArea, { backgroundColor: inputBg, color: textColor, borderColor }]}
+          multiline
+          placeholder="AIで作成された文章が入ります、自由に手直ししてください"
+          placeholderTextColor={subTextColor}
+          value={affirmationText}
+          onChangeText={setAffirmationText}
+          maxLength={200}
+        />
         
         {/* 録音エリア */}
         <View style={styles.recordingArea}>
@@ -215,15 +249,16 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   title: { fontSize: 24, fontWeight: 'bold', marginTop: 10, marginBottom: 8 },
   subtitle: { fontSize: 14, marginBottom: 20 },
-  textInputWrapper: { height: 160, marginBottom: 16 },
   textArea: {
-    flex: 1,
     borderRadius: 12,
+    paddingTop: 16,
     padding: 16,
     borderWidth: 1,
     fontSize: 16,
     lineHeight: 28,
     textAlignVertical: 'top',
+    minHeight: 180,
+    marginBottom: 16,
   },
   presetContainer: { marginBottom: 30 },
   presetLabel: { fontSize: 13, fontWeight: 'bold', marginBottom: 4 },

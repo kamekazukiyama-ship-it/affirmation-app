@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform, ActivityIndicator, Image, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '../store/useAppStore';
-import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Share2, Calendar as CalendarIcon } from 'lucide-react-native';
+import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Share2, Calendar as CalendarIcon, Key } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -20,7 +20,7 @@ Notifications.setNotificationHandler({
   }),
 });
 export function SettingScreen({ navigation }: any) {
-  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl } = useAppStore();
+  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl, elevenLabsApiKey, setElevenLabsApiKey } = useAppStore();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -186,9 +186,17 @@ export function SettingScreen({ navigation }: any) {
 
   return (
     <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text style={[styles.title, { color: textColor }]}>設定</Text>
-        <Text style={[styles.subtitle, { color: subTextColor }]}>アプリの表示モードや規約を確認できます</Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, paddingBottom: 10 }}>
+          <View>
+            <Text style={[styles.title, { color: textColor, marginTop: 0 }]}>設定</Text>
+            <Text style={[styles.subtitle, { color: subTextColor, marginTop: 4 }]}>アプリの表示モードや規約を確認できます</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Menu')} style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor }}>
+            <X color={textColor} size={24} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
 
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
           <Text style={[styles.sectionTitle, { color: textColor }]}>ホーム画面の特別な背景</Text>
@@ -423,7 +431,6 @@ export function SettingScreen({ navigation }: any) {
           </SafeAreaView>
         </LinearGradient>
       </Modal>
-
       {/* Cloud Processing Overlay */}
       {isProcessingCloud && (
         <View style={styles.loadingOverlay}>
@@ -431,6 +438,7 @@ export function SettingScreen({ navigation }: any) {
           <Text style={styles.loadingText}>{cloudProgressMsg}</Text>
         </View>
       )}
+      </SafeAreaView>
     </LinearGradient>
   );
 }
