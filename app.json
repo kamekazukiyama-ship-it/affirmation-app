@@ -1,40 +1,55 @@
 {
   "expo": {
-    "name": "倍速アファメーション",
+    "name": "AI×倍速×アファーメーション",
     "slug": "baisoku-affirmation",
     "version": "1.0.0",
+    "sdkVersion": "52.0.0",
+    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0A1A"
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.kazu.antigravity",
+      "buildNumber": "1",
+      "newArchEnabled": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "あなた専用のアファメーションを作成するための音声を録音するためにマイクを使用します。",
-        "UIBackgroundModes": ["audio"]
+        "NSMicrophoneUsageDescription": "AIによるアファメーション音声合成（ボイスクローン）を作成するために、あなたの声を録音する目的でマイクを使用します。",
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.kazu.antigravity",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#0A0A1A",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
+      "newArchEnabled": false,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "RECORD_AUDIO"
       ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "plugins": [
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0ecdfb70-4ba0-45fc-b144-c05d8025e275"
+      }
+    }
   }
 }

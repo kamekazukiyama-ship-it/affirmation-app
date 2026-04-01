@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, Modal, SafeAreaView, Image } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { useAppStore, Affirmation } from '../store/useAppStore';
@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { Visualization } from '../components/Visualization';
 
 // カレンダーの日本語化設定
 LocaleConfig.locales['ja'] = {
@@ -129,14 +130,14 @@ const AffirmationListItem = React.memo(({
 
 export function PlayerScreen({ route, navigation }: any) {
   const store = useAppStore();
-  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl, customBgms, addCustomBgm, removeCustomBgm } = store;
+  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl, customBgms, addCustomBgm, removeCustomBgm, isVisualizationEnabled } = store;
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
   const subTextColor = isDarkMode ? '#A0AEC0' : '#8E8E93';
-  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : (bgImageUrl ? 'rgba(255, 255, 255, 0.55)' : '#FFFFFF');
+  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.65)';
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
-  const activeColor = '#4A3AFF'; 
+  const activeColor = '#6B4EFF'; 
   const inactiveColor = isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -196,6 +197,7 @@ export function PlayerScreen({ route, navigation }: any) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [shareItem, setShareItem] = useState<Affirmation | null>(null);
   const viewShotRef = React.useRef<ViewShot>(null);
+  const loadingActionId = React.useRef<number>(0);
 
   const handleShareButton = (item: Affirmation) => {
     setShareItem(item);
@@ -336,8 +338,19 @@ export function PlayerScreen({ route, navigation }: any) {
 
       if (uriToPlay) {
         try {
+          let targetBgmUri = uriToPlay;
+          const currentDocDir = (FileSystem as any).documentDirectory;
+          if (targetBgmUri.includes('/Documents/') && !targetBgmUri.startsWith(currentDocDir)) {
+            const filename = targetBgmUri.split('/').pop();
+            const correctedUri = `${currentDocDir}${filename}`;
+            const check = await FileSystem.getInfoAsync(correctedUri);
+            if (check.exists) {
+              targetBgmUri = correctedUri;
+            }
+          }
+
           const { sound: createdBgm } = await Audio.Sound.createAsync(
-            { uri: uriToPlay },
+            { uri: targetBgmUri },
             { shouldPlay: true, isLooping: true, volume: bgmVolume }
           );
           if (!isCancelled) setBgmSound(createdBgm);
@@ -382,33 +395,66 @@ export function PlayerScreen({ route, navigation }: any) {
   }, [bgmVolume, bgmSound]);
 
   const playAudio = async (item: Affirmation) => {
+    const actionId = ++loadingActionId.current;
+    
     try {
       store.markListenedToday(); // ここでストリーク記録！
-      if (soundRef.current) await soundRef.current.unloadAsync();
+      
+      // 1. 今鳴っている音声を即座に停止して破棄
+      if (soundRef.current) {
+        const prevSound = soundRef.current;
+        setSound(null);
+        setIsPlaying(false);
+        await prevSound.unloadAsync().catch(e => console.warn('prev unload err', e));
+      }
+
+      // 中断チェック
+      if (actionId !== loadingActionId.current) return;
+
+      let targetUri = item.uri;
+      const currentDocDir = (FileSystem as any).documentDirectory;
+
+      // 【重要】パス補正ロジック
+      if (targetUri.includes('/Documents/') && !targetUri.startsWith(currentDocDir)) {
+        const filename = targetUri.split('/').pop();
+        const correctedUri = `${currentDocDir}${filename}`;
+        const check = await FileSystem.getInfoAsync(correctedUri);
+        if (check.exists) {
+          targetUri = correctedUri;
+        }
+      }
 
       let newSound;
       try {
         const result = await Audio.Sound.createAsync(
-          { uri: item.uri },
+          { uri: targetUri },
           { 
-            shouldPlay: false, // 最初は停止状態で用意し、のちに正しくレートと音量を適用してから再生開始
+            shouldPlay: false, 
             shouldCorrectPitch: true, 
             pitchCorrectionQuality: Audio.PitchCorrectionQuality.High,
-            volume: volRef.current, // ここでもStale Closure回避のためrefを利用
-            isLooping: false // iOSのループバグ回避
+            volume: volRef.current,
+            isLooping: false
           }
         );
         newSound = result.sound;
         
-        // iOS特有の「オーディオロード時の1周目だけsetRateが効かない」バグを完全回避
+        // 中断チェック（ロード中に別の曲が選ばれた場合）
+        if (actionId !== loadingActionId.current) {
+          await newSound.unloadAsync().catch(() => {});
+          return;
+        }
+
         await newSound.setRateAsync(speedRef.current, true, Audio.PitchCorrectionQuality.High);
         await newSound.playAsync();
         
       } catch (err: any) {
+        // ... (Error UI) ...
+        if (actionId !== loadingActionId.current) return;
+
         console.error('Core Audio Load Err:', err);
         Alert.alert(
           '再生エラー', 
-          '音声ファイルが見つかりません。アプリの再インストール等でファイルが消失した可能性があります。\nこの項目をリストから削除しますか？',
+          '音声ファイルが見つからないか、破損しています。この項目をリストから削除しますか？',
           [
             { text: 'キャンセル', style: 'cancel' },
             { text: '削除する', style: 'destructive', onPress: () => removeAffirmation(item.id) }
@@ -423,8 +469,10 @@ export function PlayerScreen({ route, navigation }: any) {
       setSelectedId(item.id);
 
     } catch (error) {
-      console.error('再生エラー全般:', error);
-      Alert.alert('エラー', '再生中に予期せぬエラーが発生しました。');
+      if (actionId === loadingActionId.current) {
+        console.error('再生エラー全般:', error);
+        Alert.alert('エラー', '再生中に予期せぬエラーが発生しました。');
+      }
     }
   };
 
@@ -866,6 +914,7 @@ export function PlayerScreen({ route, navigation }: any) {
       ) : (
         <LinearGradient colors={themeColors as [string, string]} style={StyleSheet.absoluteFill} />
       )}
+      {isVisualizationEnabled && <Visualization isDarkMode={isDarkMode} />}
       {/* 
         ★ ScrollViewで全体を囲むとネストエラー・パフォーマンス低下を招くため削除！ 
         代わりに FlatList の ListHeaderComponent を使って上部のPlayer領域を描画します。
@@ -947,9 +996,7 @@ export function PlayerScreen({ route, navigation }: any) {
                 <Text style={{ color: textColor, fontSize: 24, fontWeight: 'bold', marginLeft: 12, marginRight: 20 }}>
                   {currentStreak || 0} 日連続クリア！
                 </Text>
-                <Text style={{ color: subTextColor, fontSize: 20, fontWeight: '500' }}>
-                  |   AI倍速アファメーション
-                </Text>
+                  |   AI×倍速×アファーメーション
               </View>
             </View>
           </ViewShot>

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, SafeAreaView, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAppStore } from '../store/useAppStore';
-import { Play, Plus, BookText, Trash2, Library, CheckCircle2, Circle, X, Mic, Sparkles } from 'lucide-react-native';
+import { useAppStore, Affirmation } from '../store/useAppStore';
+import { Play, Plus, BookText, Trash2, Library, CheckCircle2, Circle, X, Mic, Sparkles, Share2, FileDown } from 'lucide-react-native';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 
 export function PlaylistScreen({ route, navigation }: any) {
   const { isDarkMode, playlists, savedTexts, affirmations, addPlaylist, removePlaylist, removeSavedText, removeAffirmation } = useAppStore();
@@ -34,6 +37,169 @@ export function PlaylistScreen({ route, navigation }: any) {
   const handlePlayPlaylist = (playlistId: string) => {
     setListModalVisible(false);
     navigation.navigate('Player', { playPlaylistId: playlistId });
+  };
+
+  const handleShareAffirmation = async (aff: Affirmation) => {
+    if (!(await Sharing.isAvailableAsync())) {
+      Alert.alert('エラー', 'このデバイスでは共有機能が利用できません');
+      return;
+    }
+
+    Alert.alert(
+      '共有方法の選択',
+      'どのような形式で共有しますか？\n（SNSやLINEに送る場合は音声ファイルを推奨します）',
+      [
+        {
+          text: '音声ファイル (.m4a)',
+          onPress: () => shareRawAudio(aff)
+        },
+        {
+          text: 'アプリ間移行用 (.json)',
+          onPress: () => shareJsonPackage(aff)
+        },
+        {
+          text: 'キャンセル',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  const shareRawAudio = async (aff: Affirmation) => {
+    try {
+      let targetUri = aff.uri;
+      const currentDocDir = (FileSystem as any).documentDirectory;
+
+      // パス補正
+      if (targetUri.includes('/Documents/') && !targetUri.startsWith(currentDocDir)) {
+        const filename = targetUri.split('/').pop();
+        const correctedUri = `${currentDocDir}${filename}`;
+        const check = await FileSystem.getInfoAsync(correctedUri);
+        if (check.exists) {
+          targetUri = correctedUri;
+        }
+      }
+
+      // リモートURLの場合は一時ファイルにダウンロード
+      if (targetUri.startsWith('http')) {
+        const fileName = `shared_${aff.id}.mp3`;
+        const tempPath = `${(FileSystem as any).cacheDirectory}${fileName}`;
+        const downloadResult = await FileSystem.downloadAsync(targetUri, tempPath);
+        targetUri = downloadResult.uri;
+      }
+
+      await Sharing.shareAsync(targetUri, {
+        mimeType: 'audio/mpeg',
+        dialogTitle: '音声を共有',
+      });
+    } catch (e: any) {
+      Alert.alert('共有エラー', '音声ファイルの送信に失敗しました: ' + e.message);
+    }
+  };
+
+  const shareJsonPackage = async (aff: Affirmation) => {
+    try {
+      let targetUri = aff.uri;
+      const currentDocDir = (FileSystem as any).documentDirectory;
+
+      if (targetUri.includes('/Documents/') && !targetUri.startsWith(currentDocDir)) {
+        const filename = targetUri.split('/').pop();
+        const correctedUri = `${currentDocDir}${filename}`;
+        const check = await FileSystem.getInfoAsync(correctedUri);
+        if (check.exists) {
+          targetUri = correctedUri;
+        }
+      }
+
+      if (targetUri.startsWith('http')) {
+        const fileName = `temp_share_${Date.now()}.mp3`;
+        const tempDldPath = `${(FileSystem as any).cacheDirectory}${fileName}`;
+        const downloadResult = await FileSystem.downloadAsync(targetUri, tempDldPath);
+        targetUri = downloadResult.uri;
+      }
+
+      // Base64化 (Fetch方式)
+      let base64Audio = '';
+      try {
+        const response = await fetch(targetUri);
+        const blob = await response.blob();
+        base64Audio = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        base64Audio = await FileSystem.readAsStringAsync(targetUri, { encoding: 'base64' as any });
+      }
+
+      const packageData = {
+        title: aff.title,
+        text: aff.text,
+        audioBase64: base64Audio,
+        extension: targetUri.split('.').pop() || 'm4a',
+        type: 'affa_package',
+        version: '1.0'
+      };
+
+      const fileName = `${aff.title.replace(/[\\\/:*?"<>|]/g, '_')}.json`;
+      const tempPath = `${(FileSystem as any).cacheDirectory}${fileName}`;
+
+      await FileSystem.writeAsStringAsync(tempPath, JSON.stringify(packageData));
+      
+      await Sharing.shareAsync(tempPath, {
+        mimeType: 'application/json',
+        dialogTitle: 'バックアップ共有',
+        UTI: 'public.json'
+      });
+    } catch (e: any) {
+      Alert.alert('共有エラー', 'パッケージの作成に失敗しました: ' + e.message);
+    }
+  };
+
+  const handleImportAffirmation = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'application/octet-stream', '*/*'],
+        copyToCacheDirectory: true
+      });
+
+      if (result.canceled) return;
+
+      const fileUri = result.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(fileUri);
+      const data = JSON.parse(content);
+
+      if (data.type !== 'affa_package' || !data.audioBase64 || data.audioBase64.length < 100) {
+        Alert.alert('エラー', 'アファメーション形式が正しくないか、音声データが破損しています。');
+        return;
+      }
+
+      // 新しいファイルとしてドキュメントディレクトリに保存
+      const ext = data.extension || 'm4a';
+      const newFileName = `imported_${Date.now()}.${ext}`;
+      const newUri = `${(FileSystem as any).documentDirectory}${newFileName}`;
+
+      await FileSystem.writeAsStringAsync(newUri, data.audioBase64, {
+        encoding: 'base64' as any
+      });
+
+      // ストアに追加
+      useAppStore.getState().addAffirmation({
+        id: Date.now().toString(),
+        title: data.title + ' (共有受取)',
+        text: data.text,
+        uri: newUri,
+        date: Date.now()
+      });
+
+      Alert.alert('成功', `「${data.title}」をライブラリに追加しました！`);
+    } catch (e: any) {
+      Alert.alert('インポートエラー', 'ファイルの読み込みに失敗しました。正しいファイルか確認してください。');
+    }
   };
 
   const renderPlaylist = ({ item }: any) => (
@@ -117,6 +283,11 @@ export function PlaylistScreen({ route, navigation }: any) {
         >
           <Play color="#FFF" size={20} style={{ marginLeft: 3 }} />
         </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.delBtn} onPress={() => handleShareAffirmation(item)}>
+          <Share2 color={activeColor} size={22} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.delBtn} onPress={() => removeAffirmation(item.id)}>
           <Trash2 color="#FF3B30" size={20} />
         </TouchableOpacity>
@@ -129,9 +300,18 @@ export function PlaylistScreen({ route, navigation }: any) {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 }}>
           <Text style={[styles.headerTitle, { color: textColor, marginHorizontal: 0, marginTop: 0, marginBottom: 0 }]}>ライブラリ</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Menu')} style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor }}>
-            <X color={textColor} size={24} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity 
+              onPress={handleImportAffirmation} 
+              style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}
+            >
+              <FileDown color={textColor} size={20} />
+              <Text style={{ color: textColor, fontSize: 13, fontWeight: 'bold' }}>読込</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Menu')} style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor }}>
+              <X color={textColor} size={24} />
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* 四分割グリッドメニュー */}

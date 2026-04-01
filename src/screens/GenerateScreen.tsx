@@ -6,7 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions, storage } from '../services/firebase';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { useAppStore } from '../store/useAppStore';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateLongAffirmation, SubjectType } from '../utils/affirmationGenerator';
 
@@ -226,10 +226,39 @@ export function GenerateScreen({ route, navigation }: any) {
         return;
       }
       try {
-        const latestAudioUri = affirmations[0].uri;
-        base64Audio = await FileSystem.readAsStringAsync(latestAudioUri, {
-          encoding: 'base64' as any,
-        });
+        let latestAudioUri = affirmations[0].uri;
+        const currentDocDir = (FileSystem as any).documentDirectory;
+
+        // 【重要】パス補正ロジック
+        // iOSではUUIDが変わると古い絶対パスが機能しなくなるため、現在のディレクトリで再構成
+        if (latestAudioUri.includes('/Documents/') && !latestAudioUri.startsWith(currentDocDir)) {
+          const filename = latestAudioUri.split('/').pop();
+          const correctedUri = `${currentDocDir}${filename}`;
+          const check = await FileSystem.getInfoAsync(correctedUri);
+          if (check.exists) {
+            latestAudioUri = correctedUri;
+          }
+        }
+
+        // fetch を使って読み取る（FileSystem の制限を回避）
+        try {
+          const response = await fetch(latestAudioUri);
+          const blob = await response.blob();
+          base64Audio = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          // フォールバック
+          base64Audio = await FileSystem.readAsStringAsync(latestAudioUri, {
+            encoding: 'base64' as any,
+          });
+        }
       } catch (err) {
         console.error('Failed to read audio file', err);
         Alert.alert('エラー', '録音データの読み込みに失敗しました。');
@@ -253,15 +282,23 @@ export function GenerateScreen({ route, navigation }: any) {
         audioUrl = await getDownloadURL(ref(storage, data.storagePath));
       }
 
-      const id = Date.now().toString();
+      const id = `${Date.now()}`;
       
       // ▼ ローカルにキャッシュして次回以降の再生ラグをゼロにする
       const localUri = FileSystem.documentDirectory + `ai_audio_${id}.mp3`;
       try {
-        await FileSystem.downloadAsync(audioUrl, localUri);
-        audioUrl = localUri; // キャッシュ成功時はローカルパスをプレイリストに登録
+        const downloadResult = await FileSystem.downloadAsync(audioUrl, localUri);
+        
+        // 保存されたか再確認（ステータス200かつファイルが存在することを確認）
+        const check = await FileSystem.getInfoAsync(localUri);
+        if (downloadResult.status === 200 && check.exists) {
+          audioUrl = localUri; // 成功時のみローカルパスに切り替え
+        } else {
+          console.warn('Download status not 200 or file missing', downloadResult.status);
+          // 失敗時は audioUrl は元のクラウドURLのまま続行
+        }
       } catch (err) {
-        console.warn('Cache download err (playing from cloud instead):', err);
+        console.warn('Cache download failed, playing from cloud:', err);
       }
 
       addAffirmation({
@@ -269,7 +306,7 @@ export function GenerateScreen({ route, navigation }: any) {
         uri: audioUrl,
         title: `AI生成: ${theme || '自動生成'}`,
         text: generatedText,
-        date: parseInt(id),
+        date: Date.now(),
       });
 
       Alert.alert('完成！🎉', '前向きなアファメーション音声が生成され、ホームのプレイリストに追加されました！');
@@ -311,7 +348,7 @@ export function GenerateScreen({ route, navigation }: any) {
           {subjectType === 'NAME' && (
             <TextInput
               style={[styles.textInput, { backgroundColor: inputBg, color: textColor, borderColor: inputBorder, marginTop: 8 }]}
-              placeholder="呼ばれたい名前を入力 (例: カズキ)"
+              placeholder="呼ばれたい名前を入力 (例: カズキ、カー君、かずぽん etc)"
               placeholderTextColor={subTextColor}
               value={customName}
               onChangeText={setCustomName}
@@ -380,7 +417,8 @@ export function GenerateScreen({ route, navigation }: any) {
               value={generatedText}
               onChangeText={setGeneratedText}
               multiline
-              maxLength={200}
+              autoCorrect={false}
+              spellCheck={false}
             />
           </View>
         ) : null}
@@ -511,6 +549,9 @@ export function GenerateScreen({ route, navigation }: any) {
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
+                  <Text style={{ color: subTextColor, fontSize: 11, marginBottom: 12, lineHeight: 16 }}>
+                    ※入力いただいたAPIキーは端末内に暗号化して保存され、開発者を含む外部に送信されることはありません。ElevenLabsの音声合成機能を利用するためにのみ、お使いの端末から直接使用されます。
+                  </Text>
                   {elevenLabsApiKey ? (
                     <Text style={{ color: '#34C759', fontSize: 13, marginBottom: 16, fontWeight: 'bold' }}>✅ APIキー設定済み（フル機能解放中！）</Text>
                   ) : null}

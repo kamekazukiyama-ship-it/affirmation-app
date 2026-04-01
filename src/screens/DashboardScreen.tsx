@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Dimensions, StyleSheet, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Mic, Sparkles, Play, Flame, Zap, X } from 'lucide-react-native';
+import { Mic, Sparkles, Play, Flame, Zap, X, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useAppStore } from '../store/useAppStore';
+import { Visualization } from '../components/Visualization';
 
 // カレンダーの日本語化設定
 LocaleConfig.locales['ja'] = {
@@ -19,7 +20,7 @@ const { width } = Dimensions.get('window');
 
 export function DashboardScreen() {
   const navigation = useNavigation<any>();
-  const { affirmations, currentStreak, listenedDays, isDarkMode } = useAppStore();
+  const { affirmations, currentStreak, listenedDays, isDarkMode, isVisualizationEnabled } = useAppStore();
   const [showCalendar, setShowCalendar] = useState(false);
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
@@ -34,13 +35,14 @@ export function DashboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+      {isVisualizationEnabled && <Visualization isDarkMode={isDarkMode} />}
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.greeting, { color: subTextColor }]}>おはようございます</Text>
-            <Text style={[styles.title, { color: textColor }]}>倍速アファメーション</Text>
+            <Text style={[styles.title, { color: textColor }]}>AI×倍速×アファーメーション</Text>
           </View>
           <View style={[styles.streakBadge, { backgroundColor: isDarkMode ? '#331B1B' : '#FFF3E0' }]}>
             <Flame color="#FF9500" size={20} />
@@ -134,30 +136,31 @@ export function DashboardScreen() {
         {/* How to use */}
         <Text style={[styles.sectionTitle, { color: textColor }]}>使い方</Text>
         
-        <View style={[styles.guideCard, { backgroundColor: cardBg, borderColor }]}>
-          <View style={styles.guideStepCircle}><Text style={styles.guideStepText}>1</Text></View>
-          <Mic color={textColor} size={24} style={{ marginHorizontal: 12 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          {/* Step 1 & 2 */}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.guideTitle, { color: textColor }]}>録音する</Text>
-            <Text style={[styles.guideDesc, { color: subTextColor }]}>「録音」タブで自分の声でアファメーションを録音</Text>
+            <View style={[styles.guideCardSmall, { backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.guideStepCircle, { backgroundColor: '#FF3B30' }]}><Text style={styles.guideStepText}>1</Text></View>
+              <Mic color={textColor} size={20} style={{ marginHorizontal: 8 }} />
+              <Text style={[styles.guideTitleSmall, { color: textColor }]}>録音する</Text>
+            </View>
+            <View style={{ height: 8 }} />
+            <View style={[styles.guideCardSmall, { backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.guideStepCircle, { backgroundColor: '#007AFF' }]}><Text style={styles.guideStepText}>2</Text></View>
+              <Sparkles color="#FFCC00" size={20} style={{ marginHorizontal: 8 }} />
+              <Text style={[styles.guideTitleSmall, { color: textColor }]}>AI生成</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={[styles.guideCard, { backgroundColor: cardBg, borderColor }]}>
-          <View style={styles.guideStepCircle}><Text style={styles.guideStepText}>2</Text></View>
-          <Sparkles color="#FFCC00" size={24} style={{ marginHorizontal: 12 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.guideTitle, { color: textColor }]}>AI生成</Text>
-            <Text style={[styles.guideDesc, { color: subTextColor }]}>「AI生成」タブでAIにアファメーションを作成してもらう</Text>
-          </View>
-        </View>
+          <ChevronRight color={subTextColor} size={32} style={{ marginHorizontal: 8 }} />
 
-        <View style={[styles.guideCard, { backgroundColor: cardBg, borderColor }]}>
-          <View style={styles.guideStepCircle}><Text style={styles.guideStepText}>3</Text></View>
-          <Zap color="#FF3B30" size={24} style={{ marginHorizontal: 12 }} />
+          {/* Step 3 */}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.guideTitle, { color: textColor }]}>倍速再生</Text>
-            <Text style={[styles.guideDesc, { color: subTextColor }]}>「プレイヤー」で2〜10倍速で再生して潜在意識に刻む</Text>
+            <View style={[styles.guideCardLarge, { backgroundColor: cardBg, borderColor, height: 104 }]}>
+              <View style={[styles.guideStepCircle, { backgroundColor: '#34C759' }]}><Text style={styles.guideStepText}>3</Text></View>
+              <Zap color="#FF3B30" size={24} style={{ marginVertical: 8 }} />
+              <Text style={[styles.guideTitleSmall, { color: textColor, textAlign: 'center' }]}>倍速で再生！</Text>
+            </View>
           </View>
         </View>
 
@@ -346,18 +349,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-  guideCard: {
+  guideTitleSmall: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  guideCardSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  guideCardLarge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 12,
   },
   guideStepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#6B4EFF',
     alignItems: 'center',
     justifyContent: 'center',

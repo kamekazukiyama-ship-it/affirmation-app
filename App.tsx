@@ -7,6 +7,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { Audio } from 'expo-av';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthScreen } from './src/screens/AuthScreen';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +30,17 @@ export default function App() {
       setUser(currentUser);
       setLoading(false);
     });
+
+    // Android用通知チャンネル設定
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'デフォルト',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+
     return unsubscribe;
   }, []);
 

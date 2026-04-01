@@ -2,7 +2,7 @@ import { useAppStore } from '../store/useAppStore';
 import { db, storage } from './firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
 
 export const syncToCloud = async (userId: string, onProgress?: (msg: string) => void) => {

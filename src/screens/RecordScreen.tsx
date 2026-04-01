@@ -162,7 +162,7 @@ export function RecordScreen() {
           {subjectType === 'NAME' && (
             <TextInput
               style={{ backgroundColor: inputBg, color: textColor, borderColor: inputBorder, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 8 }}
-              placeholder="呼ばれたい名前を入力 (例: カズキ)"
+              placeholder="呼ばれたい名前を入力 (例: カズキ、カー君、かずぽん etc)"
               placeholderTextColor={subTextColor}
               value={customName}
               onChangeText={setCustomName}
@@ -192,8 +192,8 @@ export function RecordScreen() {
           <Text style={[styles.presetLabel, { color: textColor, marginVertical: 0 }]}>③ 最後に、自由に編集します：</Text>
           {/* 文字数カウンター */}
           <View style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: inputBorder }}>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: affirmationText.length >= 200 ? '#FF3B30' : subTextColor }}>
-              {affirmationText.length} / 200
+            <Text style={{ fontSize: 11, fontWeight: '600', color: subTextColor }}>
+              {affirmationText.length} 文字
             </Text>
           </View>
         </View>
@@ -206,7 +206,8 @@ export function RecordScreen() {
           placeholderTextColor={subTextColor}
           value={affirmationText}
           onChangeText={setAffirmationText}
-          maxLength={200}
+          autoCorrect={false}
+          spellCheck={false}
         />
         
         {/* 録音エリア */}

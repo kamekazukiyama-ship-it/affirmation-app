@@ -1,0 +1,13 @@
+.expo/*
+node_modules/*
+ios/*
+android/*
+.git/*
+*.log
+.DS_Store
+Thumbs.db
+PlayStore_Android/
+AppStore_PERFECT/
+dist/
+web-build/
+store_assets/

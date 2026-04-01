@@ -20,7 +20,7 @@ export function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>AI倍速アファメーション</Text>
+      <Text style={styles.title}>AI×倍速×アファーメーション</Text>
       <Text style={styles.subtitle}>まずはログインして始めましょう</Text>
       
       {loading ? (

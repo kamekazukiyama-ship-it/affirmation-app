@@ -1,0 +1,8 @@
+Starting project at C:\Users\kamek\OneDrive\Desktop\antigravity
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  expo-image-picker@55.0.13 - expected version: ~17.0.10
+  expo-sharing@55.0.14 - expected version: ~14.0.8
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:19101
+Logs for your project will appear below.

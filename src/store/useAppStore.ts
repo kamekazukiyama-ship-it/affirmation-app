@@ -40,6 +40,8 @@ interface AppState {
   bgmVolume: number;
   isNotificationEnabled: boolean;
   notificationTime: Date;
+  isVisualizationEnabled: boolean;
+  setIsVisualizationEnabled: (enabled: boolean) => void;
   addAffirmation: (aff: Affirmation) => void;
   removeAffirmation: (id: string) => void;
   toggleFavorite: (id: string) => void;
@@ -80,6 +82,8 @@ export const useAppStore = create<AppState>((set) => ({
   bgmVolume: 0.15,
   isNotificationEnabled: false,
   notificationTime: new Date(new Date().setHours(8, 0, 0, 0)), // デフォルトは朝8時
+  isVisualizationEnabled: true, // デフォルトはオン
+  setIsVisualizationEnabled: (enabled) => set({ isVisualizationEnabled: enabled }),
   
   listenedDays: {},
   currentStreak: 0,
