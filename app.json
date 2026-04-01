@@ -28,13 +28,16 @@
     },
     "android": {
       "package": "com.kazu.antigravity",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0A0A1A",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
       "newArchEnabled": false,
       "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.CAMERA"
+      ],
       "permissions": [
         "RECORD_AUDIO"
       ]
