@@ -1,7 +1,5 @@
 .expo/*
 node_modules/*
-ios/*
-android/*
 .git/*
 *.log
 .DS_Store
