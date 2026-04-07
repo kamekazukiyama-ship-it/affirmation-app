@@ -17,10 +17,13 @@ export const syncToCloud = async (userId: string, onProgress?: (msg: string) => 
       // クラウドURLが未設定の場合、ローカルファイルをアップロード
       if (!aff.cloudUrl && aff.uri.startsWith('file://')) {
         try {
+          // 拡張子を取得（デフォルトはm4a）
+          const ext = aff.uri.endsWith('.mp3') ? '.mp3' : '.m4a';
+          
           const response = await fetch(aff.uri);
           const blob = await response.blob();
           
-          const audioRef = ref(storage, `users/${userId}/audio/${aff.id}.m4a`);
+          const audioRef = ref(storage, `users/${userId}/audio/${aff.id}${ext}`);
           await uploadBytes(audioRef, blob);
           const downloadUrl = await getDownloadURL(audioRef);
           
@@ -28,15 +31,10 @@ export const syncToCloud = async (userId: string, onProgress?: (msg: string) => 
           affirmations[i] = { ...aff, cloudUrl: downloadUrl };
         } catch (err) {
           console.warn(`Failed to upload audio ${aff.id}:`, err);
-          // エラーでも続行（一部だけアップロード失敗した等）
         }
       }
     }
-
-    if (onProgress) onProgress('データベースに同期中...');
-
-    // Firestoreにアプリ全体の状態を保存
-    // Firestoreは undefined を許容しないため、JSON経由で undefined なプロパティを消去する
+    // ... (Firestore sync remains same) ...
     const rawData = {
       affirmations,
       playlists: state.playlists,
@@ -47,14 +45,11 @@ export const syncToCloud = async (userId: string, onProgress?: (msg: string) => 
       updatedAt: Date.now()
     };
     const cleanData = JSON.parse(JSON.stringify(rawData));
-
     const docRef = doc(db, 'users', userId);
     await setDoc(docRef, cleanData);
 
-    // 成功したらローカルステートも更新（cloudUrlを反映させるため）
     useAppStore.setState({ affirmations });
     return true;
-
   } catch (error) {
     console.error("Sync to cloud error:", error);
     throw error;
@@ -67,38 +62,43 @@ export const restoreFromCloud = async (userId: string, onProgress?: (msg: string
     const docRef = doc(db, 'users', userId);
     const snapshot = await getDoc(docRef);
 
-    if (!snapshot.exists()) {
-      return false; // クラウドにデータが存在しない
-    }
+    if (!snapshot.exists()) return false;
 
     const data = snapshot.data();
-    const serverAffirmations = data.affirmations || [];
+    const serverAffirmations = [...(data.affirmations || [])];
+    const currentDocDir = FileSystem.documentDirectory;
     
     // 不足しているオーディオファイルをダウンロード
     for (let i = 0; i < serverAffirmations.length; i++) {
       const aff = serverAffirmations[i];
-      if (onProgress) onProgress(`不足している音声データをダウンロード中... (${i + 1}/${serverAffirmations.length})`);
+      if (onProgress) onProgress(`音声データを復旧中... (${i + 1}/${serverAffirmations.length})`);
       
-      if (aff.uri) {
-        // 現在のデバイスにこのファイルが存在するかチェック
-        const fileInfo = await FileSystem.getInfoAsync(aff.uri);
-        if (!fileInfo.exists && aff.cloudUrl) {
+      if (aff.cloudUrl) {
+        // パス補正ロジック：古いビルドの絶対パスが含まれている場合は「今のパス」で探し直す
+        let targetUri = aff.uri;
+        if (targetUri.includes('/Documents/') && !targetUri.startsWith(currentDocDir as string)) {
+          const filename = targetUri.split('/').pop();
+          targetUri = `${currentDocDir}${filename}`;
+        }
+
+        const fileInfo = await FileSystem.getInfoAsync(targetUri);
+        if (!fileInfo.exists) {
           try {
-            // ダウンロードしてuriを書き換え
-            let ext = aff.cloudUrl.includes('.mp3') ? '.mp3' : '.m4a';
-            const newLocalUri = FileSystem.documentDirectory + `sync_${aff.id}${ext}`;
+            // クラウドから再ダウンロード
+            const ext = aff.cloudUrl.includes('.mp3') ? '.mp3' : '.m4a';
+            const newLocalUri = `${currentDocDir}sync_${aff.id}${ext}`;
             await FileSystem.downloadAsync(aff.cloudUrl, newLocalUri);
             serverAffirmations[i] = { ...aff, uri: newLocalUri };
           } catch (err) {
-            console.warn(`Failed to download audio ${aff.id}:`, err);
+            console.warn(`Failed to restore audio ${aff.id}:`, err);
           }
+        } else {
+          // ファイルが存在する場合も、念のためURIを最新のパスに更新
+          serverAffirmations[i] = { ...aff, uri: targetUri };
         }
       }
     }
 
-    if (onProgress) onProgress('復元処理の最終仕上げ中...');
-
-    // Zustandの状態を上書き（復元）
     useAppStore.setState({
       affirmations: serverAffirmations,
       playlists: data.playlists || [],
@@ -107,7 +107,6 @@ export const restoreFromCloud = async (userId: string, onProgress?: (msg: string
       currentStreak: data.currentStreak || 0,
       longestStreak: data.longestStreak || 0,
     });
-
     return true;
   } catch (error) {
     console.error("Restore from cloud error:", error);

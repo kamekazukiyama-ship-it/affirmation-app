@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, Modal, SafeAreaView, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, Modal, SafeAreaView, Image, ActivityIndicator } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
@@ -81,7 +81,7 @@ const AudioProgress = ({
 const AffirmationListItem = React.memo(({ 
   item, index, isSelected, isEditing, editTitle,
   cardBg, activeColor, borderColor, textColor, subTextColor,
-  onPress, onEditLongPress, onEditChangeText, onEditBlur, onToggleFavorite, onDelete, onShare
+  onPress, onEditLongPress, onEditChangeText, onEditBlur, onToggleFavorite, onDelete
 }: any) => {
   return (
     <TouchableOpacity 
@@ -110,9 +110,6 @@ const AffirmationListItem = React.memo(({
       <TouchableOpacity style={styles.listAction} onPress={() => onToggleFavorite(item.id)}>
         <Heart color={item.isFavorite ? '#FF3B30' : subTextColor} fill={item.isFavorite ? '#FF3B30' : 'none'} size={20} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.listAction} onPress={() => onShare(item)}>
-        <Share2 color={subTextColor} size={18} />
-      </TouchableOpacity>
       <TouchableOpacity style={styles.listAction} onPress={() => onDelete(item.id, item.title)}>
         <Trash2 color="#FF3B30" size={20} />
       </TouchableOpacity>
@@ -135,10 +132,10 @@ export function PlayerScreen({ route, navigation }: any) {
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
   const subTextColor = isDarkMode ? '#A0AEC0' : '#8E8E93';
-  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.65)';
+  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)';
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
   const activeColor = '#6B4EFF'; 
-  const inactiveColor = isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
+  const inactiveColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [bgmSound, setBgmSound] = useState<Audio.Sound | null>(null);
@@ -152,13 +149,20 @@ export function PlayerScreen({ route, navigation }: any) {
 
   const bgmList = [
     { id: 'none', label: 'なし' },
-    { id: '528hz', label: '癒やし(528Hz)', url: 'https://archive.org/download/528Hz_201904/528Hz.mp3' },
-    { id: '432hz', label: '調和(432Hz)', url: 'https://archive.org/download/A432Hz/A432Hz.mp3' },
-    { id: 'river', label: '川', url: 'https://archive.org/download/ForestStream_201708/ForestStream.mp3' },
-    { id: 'waves', label: '海', url: 'https://cdn.freesound.org/previews/400/400632_5121236-lq.mp3' },
-    { id: 'fire', label: '焚き火', url: 'https://archive.org/download/Campfire_201811/Campfire.mp3' },
-    { id: 'relax', label: 'ピアノ(月光)', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3' },
-    { id: 'focus', label: 'ピアノ(カノン)', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3' }
+    { id: 'focus', label: 'ピアノ(カノン) ★', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3', tag: '定番' },
+    { id: 'moonlight', label: 'ピアノ(月光) ★', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3', tag: '定番' },
+    { id: 'bgm1', label: 'BGM1', source: require('../../assets/bgm/bgm_1.mp4'), tag: '定番' },
+    { id: 'bgm2', label: 'BGM2', source: require('../../assets/bgm/bgm_2.mp4'), tag: '定番' },
+    // ローカル音源 (requireを使用)
+    { id: '396hz', label: '解放 (396Hz)', source: require('../../assets/bgm/bgm_396hz.mp3'), tag: 'ソルフェ' },
+    { id: '432hz', label: '宇宙 (432Hz)', source: require('../../assets/bgm/bgm_432hz.mp3'), tag: 'ソルフェ' },
+    { id: '528hz', label: '奇跡 (528Hz)', source: require('../../assets/bgm/bgm_528hz.mp3'), tag: 'ソルフェ' },
+    { id: '852hz', label: '覚醒 (852Hz)', source: require('../../assets/bgm/bgm_852hz.mp3'), tag: 'ソルフェ' },
+    { id: '963hz', label: '宇宙意識 (963Hz)', source: require('../../assets/bgm/bgm_963hz.mp3'), tag: 'ソルフェ' },
+    { id: 'river_local', label: '川のせせらぎ', source: require('../../assets/bgm/bgm_river_local.mp3'), tag: '自然' },
+    { id: 'fire_local', label: '焚き火', source: require('../../assets/bgm/bgm_fire_local.mp3'), tag: '自然' },
+    { id: 'birds_local', label: '鳥のさえずり', source: require('../../assets/bgm/bgm_birds_local.mp3'), tag: '自然' },
+    { id: 'noise_local', label: 'ホワイトノイズ', source: require('../../assets/bgm/bgm_noise.mp3'), tag: '自然' },
   ];
 
   const handleAddCustomBgm = async () => {
@@ -194,29 +198,9 @@ export function PlayerScreen({ route, navigation }: any) {
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [bgmIsPlaying, setBgmIsPlaying] = useState(false);
+  const [isBgmLoading, setIsBgmLoading] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [shareItem, setShareItem] = useState<Affirmation | null>(null);
-  const viewShotRef = React.useRef<ViewShot>(null);
   const loadingActionId = React.useRef<number>(0);
-
-  const handleShareButton = (item: Affirmation) => {
-    setShareItem(item);
-    setTimeout(async () => {
-      try {
-        if (viewShotRef.current && viewShotRef.current.capture) {
-          const uri = await viewShotRef.current.capture();
-          await Sharing.shareAsync(uri, {
-            dialogTitle: 'アファメーションをシェア',
-          });
-          setShareItem(null);
-        }
-      } catch (err) {
-        console.error(err);
-        Alert.alert('エラー', '画像の生成に失敗しました');
-        setShareItem(null);
-      }
-    }, 300); // UIへレンダリングされるのを待つ
-  };
 
   // プレイリストの直接再生リクエストを受け取る
   const playPlaylistId = route?.params?.playPlaylistId;
@@ -300,16 +284,16 @@ export function PlayerScreen({ route, navigation }: any) {
       // 完全に独立したBGM管理
       if (!bgmIsPlaying) {
         if (bgmSound) {
-          await bgmSound.stopAsync();
-          await bgmSound.unloadAsync();
+          await bgmSound.stopAsync().catch(() => {});
+          await bgmSound.unloadAsync().catch(() => {});
           if (!isCancelled) setBgmSound(null);
         }
         return;
       }
       
       if (bgmSound) {
-        await bgmSound.stopAsync();
-        await bgmSound.unloadAsync();
+        await bgmSound.stopAsync().catch(() => {});
+        await bgmSound.unloadAsync().catch(() => {});
         if (!isCancelled) setBgmSound(null);
       }
 
@@ -318,54 +302,69 @@ export function PlayerScreen({ route, navigation }: any) {
         return;
       }
       
-      let uriToPlay = '';
-      const selectedBgmObj = bgmList.find(b => b.id === bgmType);
+      let bgmSource: any = null;
+      const selectedBgmObj = bgmList.find(b => b.id === bgmType) as any;
       const customBgmObj = customBgms.find(b => b.id === bgmType);
 
-      if (selectedBgmObj && selectedBgmObj.url) {
-        uriToPlay = selectedBgmObj.url;
-        if (uriToPlay.startsWith('http')) {
-          const localUri = FileSystem.documentDirectory + `bgm_cache_${selectedBgmObj.id}.mp3`;
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (!fileInfo.exists) {
-            await FileSystem.downloadAsync(uriToPlay, localUri);
-          }
-          uriToPlay = localUri;
-        }
-      } else if (customBgmObj && customBgmObj.uri) {
-        uriToPlay = customBgmObj.uri;
-      }
-
-      if (uriToPlay) {
-        try {
-          let targetBgmUri = uriToPlay;
-          const currentDocDir = (FileSystem as any).documentDirectory;
-          if (targetBgmUri.includes('/Documents/') && !targetBgmUri.startsWith(currentDocDir)) {
-            const filename = targetBgmUri.split('/').pop();
-            const correctedUri = `${currentDocDir}${filename}`;
-            const check = await FileSystem.getInfoAsync(correctedUri);
-            if (check.exists) {
-              targetBgmUri = correctedUri;
+      if (selectedBgmObj) {
+        if (selectedBgmObj.source) {
+          // アプリ内音源 (require)
+          bgmSource = selectedBgmObj.source;
+        } else if (selectedBgmObj.url) {
+          // 外部URL音源 (キャッシュ処理)
+          let uriToPlay = selectedBgmObj.url;
+          if (uriToPlay.startsWith('http')) {
+            const localUri = `${FileSystem.documentDirectory}bgm_cache_${selectedBgmObj.id}.mp3`;
+            const fileInfo = await FileSystem.getInfoAsync(localUri);
+            if (!fileInfo.exists) {
+              try {
+                const downloadResult = await FileSystem.downloadAsync(uriToPlay, localUri);
+                if (downloadResult.status === 200) uriToPlay = localUri;
+              } catch (e) {
+                console.warn('BGM download fail', e);
+              }
+            } else {
+              uriToPlay = localUri;
             }
           }
+          bgmSource = { uri: uriToPlay };
+        }
+      } else if (customBgmObj && customBgmObj.uri) {
+        // ユーザー追加音源
+        let targetBgmUri = customBgmObj.uri;
+        const currentDocDir = FileSystem.documentDirectory;
+        if (targetBgmUri.includes('/Documents/') && !targetBgmUri.startsWith(currentDocDir as string)) {
+          const filename = targetBgmUri.split('/').pop();
+          targetBgmUri = `${currentDocDir}${filename}`;
+        }
+        bgmSource = { uri: targetBgmUri };
+      }
 
+      if (bgmSource && !isCancelled) {
+        try {
+          setIsBgmLoading(true);
           const { sound: createdBgm } = await Audio.Sound.createAsync(
-            { uri: targetBgmUri },
-            { shouldPlay: true, isLooping: true, volume: bgmVolume }
+            bgmSource,
+            { shouldPlay: true, isLooping: true, volume: bgmVolRef.current }
           );
-          if (!isCancelled) setBgmSound(createdBgm);
-          else createdBgm.unloadAsync(); // キャンセルされていれば破棄
+          if (!isCancelled) {
+            setBgmSound(createdBgm);
+            setIsBgmLoading(false);
+          } else {
+            createdBgm.unloadAsync().catch(() => {});
+          }
         } catch (e) {
-          console.warn('BGM dynamic load err', e);
+          console.warn('BGM load error:', e);
+          if (!isCancelled) {
+            setBgmIsPlaying(false);
+            setIsBgmLoading(false);
+          }
         }
       }
     };
     
     changeBgm();
-    
-    return () => {
-      isCancelled = true;
-    };
+    return () => { isCancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bgmType, bgmIsPlaying]);
 
@@ -635,7 +634,7 @@ export function PlayerScreen({ route, navigation }: any) {
       </View>
 
       {/* プレイヤーコントロール群 (Boxed) */}
-      <View style={[styles.playerContainer, { backgroundColor: cardBg, borderColor, padding: 20, borderRadius: 20, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 }]}>
+      <View style={[styles.playerContainer, { backgroundColor: cardBg || inactiveColor, borderColor, padding: 20, borderRadius: 20, borderWidth: 1 }]}>
         <AudioProgress 
           sound={sound} 
           onFinish={async () => {
@@ -664,7 +663,7 @@ export function PlayerScreen({ route, navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.playPauseButton, { backgroundColor: activeColor, width: 72, height: 72, borderRadius: 36, shadowColor: activeColor, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 }]} 
+            style={[styles.playPauseButton, { backgroundColor: activeColor, width: 76, height: 76, borderRadius: 38 }]} 
             onPress={handleMainPlayToggle}
           >
             {(isPlaying && !isPaused) ? <Pause color="#FFF" size={32} /> : <Play color="#FFF" size={32} style={{ marginLeft: 6 }} />}
@@ -720,46 +719,72 @@ export function PlayerScreen({ route, navigation }: any) {
           <View style={[styles.settingsPanel, { backgroundColor: cardBg, borderColor }]}>
             <View style={styles.volRow}>
               <Text style={{color: textColor, fontSize: 13, marginRight: 8, width: 60}}>BGM選択:</Text>
-              <View style={{flexDirection: 'row', flexWrap: 'wrap', flex: 1}}>
-                {bgmList.map((bgm) => (
-                  <TouchableOpacity 
-                    key={bgm.id} 
-                    style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginBottom: 8 }]}
-                    onPress={() => store.setBgmType(bgm.id)}
-                  >
-                    <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 12, fontWeight: '500'}}>{bgm.label}</Text>
-                  </TouchableOpacity>
-                ))}
-                {customBgms.map((bgm) => (
-                  <View key={bgm.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginRight: 8 }}>
+              <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'column' }}>
+                  {/* カテゴリごとに分けて表示 */}
+                  {['定番', 'ソルフェ', '自然'].map(category => (
+                    <View key={category} style={{ flexDirection: 'row', marginBottom: 8 }}>
+                      {bgmList.filter(b => b.tag === category || (category === '定番' && b.id === 'none')).map((bgm) => (
+                        <TouchableOpacity 
+                          key={bgm.id} 
+                          style={[
+                            styles.bgmChip, 
+                            { 
+                              backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor,
+                              borderWidth: 1,
+                              borderColor: bgmType === bgm.id ? activeColor : borderColor
+                            }
+                          ]}
+                          onPress={() => {
+                            if (bgmType !== bgm.id) {
+                              setIsBgmLoading(true);
+                              store.setBgmType(bgm.id);
+                              setBgmIsPlaying(true);
+                            }
+                          }}
+                        >
+                          <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 11, fontWeight: '600'}}>
+                            {bgm.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ))}
+                  
+                  {/* カスタムBGM */}
+                  <View style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+                    {customBgms.map((bgm) => (
+                      <View key={bgm.id} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                        <TouchableOpacity 
+                          style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginRight: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
+                          onPress={() => store.setBgmType(bgm.id)}
+                        >
+                          <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 11, fontWeight: '500'}} numberOfLines={1}>{bgm.name.length > 6 ? bgm.name.substring(0,6)+'...' : bgm.name}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.bgmChip, { backgroundColor: '#FF3B30', paddingHorizontal: 6, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: 28, justifyContent: 'center' }]}
+                          onPress={() => {
+                            if (bgmType === bgm.id) store.setBgmType('none');
+                            removeCustomBgm(bgm.id);
+                            FileSystem.deleteAsync(bgm.uri, { idempotent: true });
+                          }}
+                        >
+                          <X color="#FFF" size={12} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
                     <TouchableOpacity 
-                      style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginRight: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
-                      onPress={() => store.setBgmType(bgm.id)}
+                      style={[styles.bgmChip, { backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor }]}
+                      onPress={handleAddCustomBgm}
                     >
-                      <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 12, fontWeight: '500'}} numberOfLines={1} ellipsizeMode="middle">{bgm.name.length > 8 ? bgm.name.substring(0,8)+'...' : bgm.name}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.bgmChip, { backgroundColor: '#FF3B30', paddingHorizontal: 8, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
-                      onPress={() => {
-                        if (bgmType === bgm.id) store.setBgmType('none');
-                        removeCustomBgm(bgm.id);
-                        FileSystem.deleteAsync(bgm.uri, { idempotent: true });
-                      }}
-                    >
-                      <X color="#FFF" size={14} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Plus color={activeColor} size={14} style={{ marginRight: 4 }} />
+                        <Text style={{color: activeColor, fontSize: 11, fontWeight: 'bold'}}>追加</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
-                ))}
-                <TouchableOpacity 
-                  style={[styles.bgmChip, { backgroundColor: inactiveColor, marginBottom: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor }]}
-                  onPress={handleAddCustomBgm}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Plus color={textColor} size={14} style={{ marginRight: 4 }} />
-                    <Text style={{color: textColor, fontSize: 12, fontWeight: '500'}}>端末から追加</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
+                </View>
+              </ScrollView>
             </View>
             <View style={styles.volRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', width: 60 }}>
@@ -782,8 +807,18 @@ export function PlayerScreen({ route, navigation }: any) {
               </View>
               {bgmType !== 'none' && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <TouchableOpacity onPress={handleBgmPlayToggle} style={{ padding: 6, backgroundColor: activeColor, borderRadius: 16, marginRight: 8, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}>
-                    {bgmIsPlaying ? <Pause color="#FFF" size={14} /> : <Play color="#FFF" size={14} style={{ marginLeft: 3 }} />}
+                  <TouchableOpacity 
+                    onPress={handleBgmPlayToggle} 
+                    disabled={isBgmLoading}
+                    style={{ padding: 6, backgroundColor: isBgmLoading ? inactiveColor : activeColor, borderRadius: 16, marginRight: 8, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}
+                  >
+                    {isBgmLoading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : bgmIsPlaying ? (
+                      <Pause color="#FFF" size={14} />
+                    ) : (
+                      <Play color="#FFF" size={14} style={{ marginLeft: 3 }} />
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleBgmStop} style={{ padding: 6, backgroundColor: cardBg, borderColor, borderWidth: 1, borderRadius: 16 }}>
                     <Square color="#FF3B30" size={14} />
@@ -966,49 +1001,16 @@ export function PlayerScreen({ route, navigation }: any) {
             onEditBlur={saveTitle}
             onToggleFavorite={toggleFavorite}
             onDelete={handleDelete}
-            onShare={handleShareButton}
           />
         )}
       />
       {renderCalendarModal()}
-      
-      {shareItem && (
-        <View style={{ position: 'absolute', left: -5000, top: 0 }}>
-          <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9 }}>
-            <View style={{ width: 1080, height: 1080, backgroundColor: isDarkMode ? '#0A0A1A' : '#F0F8FF', justifyContent: 'center', alignItems: 'center' }}>
-              {bgImageUrl ? (
-                <>
-                  <Image source={{ uri: bgImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? 'rgba(10,10,26,0.5)' : 'rgba(255,255,255,0.3)' }]} />
-                </>
-              ) : (
-                <LinearGradient colors={themeColors as [string, string]} style={StyleSheet.absoluteFill} />
-              )}
-              
-              <View style={{ width: '85%', padding: 40, backgroundColor: cardBg, borderRadius: 24, borderWidth: 1, borderColor }}>
-                <Text style={{ color: textColor, fontSize: 48, fontWeight: 'bold', textAlign: 'center', lineHeight: 68 }}>
-                  "{shareItem.title}"
-                </Text>
-              </View>
-              
-              <View style={{ position: 'absolute', bottom: 60, alignItems: 'center', flexDirection: 'row', backgroundColor: cardBg, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 40, borderWidth: 1, borderColor }}>
-                <Flame color="#FF9500" size={32} />
-                <Text style={{ color: textColor, fontSize: 24, fontWeight: 'bold', marginLeft: 12, marginRight: 20 }}>
-                  {currentStreak || 0} 日連続クリア！
-                </Text>
-                  |   AI×倍速×アファーメーション
-              </View>
-            </View>
-          </ViewShot>
-        </View>
-      )}
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16, backgroundColor: 'transparent' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   closeBtn: { padding: 4 },
@@ -1018,11 +1020,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   mainText: { fontSize: 16, lineHeight: 28, fontWeight: '500', letterSpacing: 0.5 },
   playerContainer: { marginBottom: 20 },
@@ -1030,7 +1028,7 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 13, width: 38, textAlign: 'center' },
   mainControlsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 24, paddingHorizontal: 16, gap: 40 }, 
   iconButton: { padding: 12 },
-  playPauseButton: { width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center', shadowColor: '#4A3AFF', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  playPauseButton: { backgroundColor: '#6B4EFF', width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center' },
   speedSection: { marginBottom: 20 },
   speedLabel: { fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
   speedButtonsGrid: { gap: 8 },

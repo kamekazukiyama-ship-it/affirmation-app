@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform, ActivityIndicator, Image, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform, ActivityIndicator, Image, TextInput, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '../store/useAppStore';
-import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Share2, Calendar as CalendarIcon, Key, Zap } from 'lucide-react-native';
+import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Share2, Calendar as CalendarIcon, Key, Zap, Trash2 } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { onAuthStateChanged, signOut, User, deleteUser } from 'firebase/auth';
+import { auth, db } from '../services/firebase';
 import { syncToCloud, restoreFromCloud } from '../services/cloudSync';
+import { doc, deleteDoc } from 'firebase/firestore';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -102,6 +103,45 @@ export function SettingScreen({ navigation }: any) {
       { text: 'キャンセル', style: 'cancel' },
       { text: 'ログアウト', style: 'destructive', onPress: async () => await signOut(auth) }
     ]);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    Alert.alert(
+      '⚠️ 退会（アカウント削除）',
+      'クラウド上のバックアップデータとアカウントを完全に削除しますか？\n（この操作は取り消せません）',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { 
+          text: 'アカウントを削除', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              setIsProcessingCloud(true);
+              setCloudProgressMsg('アカウント情報を削除しています...');
+              
+              const docRef = doc(db, 'users', user.uid);
+              await deleteDoc(docRef);
+              await deleteUser(user);
+              
+              setIsProcessingCloud(false);
+              Alert.alert('完了', 'アカウントの削除が完了しました。ご利用ありがとうございました。');
+            } catch (e: any) {
+              setIsProcessingCloud(false);
+              if (e.code === 'auth/requires-recent-login') {
+                Alert.alert(
+                  '再ログインが必要です',
+                  'セキュリティ保護のため、アカウント削除には最近のログインが必要です。一度ログアウトしてから再度ログインして実行してください。'
+                );
+              } else {
+                Alert.alert('エラー', 'アカウントの削除に失敗しました。\n' + e.message);
+              }
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const handleSyncToCloud = () => {
@@ -224,8 +264,11 @@ export function SettingScreen({ navigation }: any) {
   const handlePrivacyPolicy = () => {
     Alert.alert(
       'プライバシーポリシー',
-      '当アプリはユーザーの皆様のプライバシーを尊重します。\n\n・録音データは一時的にクラウドに保存され、AI音声合成の完了後に即座に消去されます。\n・生成された音声データはご本人専用のバケットに保管され、本人のみがアクセス可能です。\n・個人情報は一切の第三者に提供されません。',
-      [{ text: '確認しました', style: 'default' }]
+      '当アプリはユーザーの皆様のプライバシーを尊重します。\n\n【外部サービスの利用について】\nアファメーションの生成および音声合成のため、第三者AIサービス（OpenAI, ElevenLabs）を利用しています。送信されたデータは生成の目的のみに使用されます。\n\n【データの取り扱いについて】\n・録音データは一時的にクラウドに保存され、AI音声合成の完了後に即座に消去されます。\n・生成された音声データはご本人専用のバケットに保管され、本人のみがアクセス可能です。\n・個人情報は一切の第三者に提供されません。',
+      [
+        { text: 'Webで全文を確認', onPress: () => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub') },
+        { text: '確認しました', style: 'default' }
+      ]
     );
   };
 
@@ -434,6 +477,14 @@ export function SettingScreen({ navigation }: any) {
                   <Text style={[styles.rowText, { color: '#FF3B30', marginLeft: 12 }]}>ログアウト</Text>
                 </View>
               </TouchableOpacity>
+
+              <View style={{ height: 1, backgroundColor: borderColor, marginVertical: 8 }} />
+              <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
+                <View style={styles.rowLeft}>
+                  <Trash2 color={subTextColor} size={24} />
+                  <Text style={[styles.rowText, { color: subTextColor, marginLeft: 12, fontSize: 13 }]}>アカウントを削除して退会する</Text>
+                </View>
+              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -525,8 +576,7 @@ export function SettingScreen({ navigation }: any) {
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
                   ・**リラックス状態で**：寝起きや寝る前、入浴中など、脳波がアルファ波やシータ波に近いときが最適です。{'\n'}
-                  ・**毎日続ける**：潜在意識の書き換えには「繰り返し」が不可欠です。🔥バッジを目指してまずは21日間続けてみましょう。{'\n'}
-                  ・**背景をカスタム**：設定から「推し」や「理想の生活」の写真を背景に。視覚と聴覚の両面から自分をプログラミングしてください。
+                  ・**毎日続ける**：潜在意識の書き換えには「繰り返し」が不可欠です。🔥バッジを目指してまずは21日間続けてみましょう。
                 </Text>
               </View>
 
@@ -537,8 +587,7 @@ export function SettingScreen({ navigation }: any) {
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
                   ・ホーム画面上部に表示される「🔥 〇日連続」のバッジをタップすると、これまでの記録カレンダーを確認できます！{'\n'}
-                  ・「設定画面」の「ホーム画面の特別な背景」から、スマホ内の好きな画像を背景に設定できます（推しやペットの写真がおすすめ！）。{'\n'}
-                  ・各アファメーションの「シェアアイコン」を押すと、現在の日数入りでおしゃれなカード画像としてInstagramやXなどにシェアできます！
+                  ・「設定画面」の「ホーム画面の特別な背景」から、スマホ内の好きな画像を背景に設定できます（推しやペットの写真がおすすめ！）。
                 </Text>
               </View>
 

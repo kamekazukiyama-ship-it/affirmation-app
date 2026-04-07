@@ -27,8 +27,8 @@ export function DashboardScreen() {
   const bgColor = isDarkMode ? '#0A0A1A' : '#F8F9FA';
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
   const subTextColor = isDarkMode ? '#8E8E93' : '#6C6C70';
-  const cardBg = isDarkMode ? '#1C1C1E' : '#FFFFFF';
-  const borderColor = isDarkMode ? '#2C2C2E' : '#E5E5EA';
+  const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.8)';
+  const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
 
   const recordCount = affirmations.filter(a => !a.title.includes('AI生成')).length;
   const aiCount = affirmations.filter(a => a.title.includes('AI生成')).length;
@@ -51,9 +51,9 @@ export function DashboardScreen() {
         </View>
 
         {/* Motivation Banner */}
-        <View style={[styles.banner, { backgroundColor: isDarkMode ? '#1A1B33' : '#F0F4FF' }]}>
+        <View style={[styles.banner, { backgroundColor: isDarkMode ? 'rgba(107, 78, 255, 0.15)' : 'rgba(107, 78, 255, 0.05)' }]}>
           <Sparkles color="#6B4EFF" size={24} style={{ marginRight: 16 }} />
-          <Text style={[styles.bannerText, { color: isDarkMode ? '#C7C2FF' : '#4A3B99' }]}>
+          <Text style={[styles.bannerText, { color: isDarkMode ? '#C7C2FF' : '#6B4EFF' }]}>
             毎日の積み重ねが{'\n'}奇跡を生む
           </Text>
         </View>

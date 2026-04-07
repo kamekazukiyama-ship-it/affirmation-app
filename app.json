@@ -2,7 +2,7 @@
   "expo": {
     "name": "AI×倍速×アファーメーション",
     "slug": "baisoku-affirmation",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "sdkVersion": "52.0.0",
     "newArchEnabled": false,
     "orientation": "portrait",
@@ -16,10 +16,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kazu.antigravity",
-      "buildNumber": "1",
+      "buildNumber": "9",
       "newArchEnabled": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "AIによるアファメーション音声合成（ボイスクローン）を作成するために、あなたの声を録音する目的でマイクを使用します。",
+        "NSMicrophoneUsageDescription": "アファーメーションのボイスクローンを作成するために、自分の声を録音する目的でマイクを使用します。録音された声はAI音声生成にのみ使用されます。",
+        "NSPhotoLibraryUsageDescription": "お気に入りの写真をプレイヤー画面の背景に設定して、アファーメーション体験をカスタマイズするために、写真アルバムへの読み取りアクセスを使用します。",
         "UIBackgroundModes": [
           "audio"
         ],
@@ -28,7 +29,7 @@
     },
     "android": {
       "package": "com.kazu.antigravity",
-      "versionCode": 3,
+      "versionCode": 8,
       "adaptiveIcon": {
         "backgroundColor": "#0A0A1A",
         "foregroundImage": "./assets/adaptive-icon.png"

@@ -47,14 +47,14 @@ export function PlaylistScreen({ route, navigation }: any) {
 
     Alert.alert(
       '共有方法の選択',
-      'どのような形式で共有しますか？\n（SNSやLINEに送る場合は音声ファイルを推奨します）',
+      'どのような形式で共有しますか？',
       [
         {
           text: '音声ファイル (.m4a)',
           onPress: () => shareRawAudio(aff)
         },
         {
-          text: 'アプリ間移行用 (.json)',
+          text: 'データ移行用 (.json)',
           onPress: () => shareJsonPackage(aff)
         },
         {
@@ -88,10 +88,22 @@ export function PlaylistScreen({ route, navigation }: any) {
         targetUri = downloadResult.uri;
       }
 
-      await Sharing.shareAsync(targetUri, {
-        mimeType: 'audio/mpeg',
-        dialogTitle: '音声を共有',
-      });
+      Alert.alert(
+        '送信の確認',
+        'この音声データを送信してもよろしいですか？',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { 
+            text: '送信する', 
+            onPress: async () => {
+              await Sharing.shareAsync(targetUri, {
+                mimeType: 'audio/mpeg',
+                dialogTitle: '音声を共有',
+              });
+            }
+          }
+        ]
+      );
     } catch (e: any) {
       Alert.alert('共有エラー', '音声ファイルの送信に失敗しました: ' + e.message);
     }
@@ -150,11 +162,23 @@ export function PlaylistScreen({ route, navigation }: any) {
 
       await FileSystem.writeAsStringAsync(tempPath, JSON.stringify(packageData));
       
-      await Sharing.shareAsync(tempPath, {
-        mimeType: 'application/json',
-        dialogTitle: 'バックアップ共有',
-        UTI: 'public.json'
-      });
+      Alert.alert(
+        '送信の確認',
+        'この音声データを送信してもよろしいですか？',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { 
+            text: '送信する', 
+            onPress: async () => {
+              await Sharing.shareAsync(tempPath, {
+                mimeType: 'application/json',
+                dialogTitle: 'バックアップ共有',
+                UTI: 'public.json'
+              });
+            }
+          }
+        ]
+      );
     } catch (e: any) {
       Alert.alert('共有エラー', 'パッケージの作成に失敗しました: ' + e.message);
     }
@@ -206,11 +230,11 @@ export function PlaylistScreen({ route, navigation }: any) {
     <TouchableOpacity 
       style={[styles.card, { backgroundColor: cardBg, borderColor }]}
       onPress={() => {
+        // iOSでのModal遷移競合によるフリーズを防ぐため、リストモーダルは閉じずに上に重ねる
         setEditingPlaylistId(item.id);
         setNewPlaylistName(item.name);
         setSelectedItems(item.itemIds);
-        setListModalVisible(false);
-        setTimeout(() => setCreateModalVisible(true), 350);
+        setCreateModalVisible(true);
       }}
     >
       <View style={styles.cardIconBox}>
@@ -387,8 +411,7 @@ export function PlaylistScreen({ route, navigation }: any) {
                   setEditingPlaylistId(null);
                   setNewPlaylistName('');
                   setSelectedItems([]);
-                  setListModalVisible(false);
-                  setTimeout(() => setCreateModalVisible(true), 350);
+                  setCreateModalVisible(true);
                 } else {
                   setListModalVisible(false); // モーダルを閉じてから遷移
                   navigation.navigate('Generate');
@@ -417,6 +440,16 @@ export function PlaylistScreen({ route, navigation }: any) {
             }
             contentContainerStyle={{ paddingBottom: 100 }}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              (activeTab === 'mic' || activeTab === 'ai') ? (
+                <View style={{ backgroundColor: 'rgba(107,78,255,0.08)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor, flexDirection: 'row', alignItems: 'center' }}>
+                  <Share2 color={activeColor} size={18} />
+                  <Text style={{ color: subTextColor, fontSize: 13, fontWeight: '500', marginLeft: 10, flex: 1 }}>
+                    このシェアボタンで音声データを友達に送れます。🎵
+                  </Text>
+                </View>
+              ) : null
+            }
             ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Text style={{ color: subTextColor, textAlign: 'center', lineHeight: 24 }}>データがありません</Text>
@@ -507,7 +540,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
   headerTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
   gridContainer: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 10, gap: 16 },
-  gridCard: { width: '47%', paddingVertical: 32, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  gridCard: { backgroundColor: '#FFFFFF', width: '47%', paddingVertical: 32, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   gridIconBox: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   gridTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
   gridSub: { fontSize: 12, textAlign: 'center' },
@@ -519,7 +552,7 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1, marginLeft: 16, marginRight: 8 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   cardSub: { fontSize: 13, lineHeight: 20 },
-  playBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  playBtn: { backgroundColor: '#FFFFFF', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
   delBtn: { padding: 12, marginLeft: 4 },
   emptyBox: { padding: 40, alignItems: 'center', justifyContent: 'center', marginTop: 40 },
   modalContainer: { flex: 1, padding: 20, paddingTop: 40 },

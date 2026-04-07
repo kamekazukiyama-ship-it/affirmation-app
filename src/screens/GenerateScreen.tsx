@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, LayoutAnimation, Platform, UIManager, Modal } from 'react-native';
 import { Sparkles, Mic, Square, Key, ChevronDown, ChevronUp, Play } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { httpsCallable } from 'firebase/functions';
@@ -10,20 +10,37 @@ import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateLongAffirmation, SubjectType } from '../utils/affirmationGenerator';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const PREVIEW_CACHE: Record<string, string> = {};
 
 export function GenerateScreen({ route, navigation }: any) {
   const AI_VOICES = [
-    { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'アリス (Alice)', desc: '落ち着いた優しい女性の声。リラックスに最適。', icon: '👩🏻', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/Xb7hH8MSUJpSbSDYk0k2/d10f7534-11f6-41fe-a012-2de1e482d336.mp3' },
-    { id: 'XrExE9yKIg1WjnnlVkGX', name: 'マチルダ (Matilda)', desc: '明るく元気な女性の声。モチベーションアップに！', icon: '👧🏼', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/XrExE9yKIg1WjnnlVkGX/b930e18d-6b4d-466e-bab2-0ae97c6d8535.mp3' },
-    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'ベラ (Bella)', desc: '柔らかく温かみのある女性の声。安心感があります。', icon: '👩🏽', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/01a3e33c-6e99-4ee7-8543-ff2216a32186.mp3' },
-    { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'ローラ (Laura)', desc: '少しクセのある元気な声。個性的な響きです。', icon: '👱‍♀️', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/FGY2WhTYpPnrIDTdsKH5/67341759-ad08-41a5-be6e-de12fe448618.mp3' },
-    { id: 'cgSgspJ2msm6clMCkdW9', name: 'ジェシカ (Jessica)', desc: '可愛らしくて温かい声。親しみやすさ抜群。', icon: '🌸', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/cgSgspJ2msm6clMCkdW9/56a97bf8-b69b-448f-846c-c3a11683d45a.mp3' },
-    { id: 'cjVigY5qzO86Huf0OWal', name: 'エリック (Eric)', desc: '親しみやすくバランスの良い男性の声。', icon: '👨🏻', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/cjVigY5qzO86Huf0OWal/d098fda0-6456-4030-b3d8-63aa048c9070.mp3' },
-    { id: 'nPczCjzI2devNBz1zQrb', name: 'ブライアン (Brian)', desc: '深く渋い男性の声。説得力と落ち着きがあります。', icon: '👨🏽‍🦳', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/nPczCjzI2devNBz1zQrb/2dd3e72c-4fd3-42f1-93ea-abc5d4e5aa1d.mp3' },
-    { id: 'IKne3meq5aSn9XLyUdCD', name: 'チャーリー (Charlie)', desc: 'ハキハキとした自信に満ちた声。テンション高め！', icon: '👦🏻', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/IKne3meq5aSn9XLyUdCD/102de6f2-22ed-43e0-a1f1-111fa75c5481.mp3' },
-    { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'ジョージ (George)', desc: '温かく語りかけるようなおじさまの声。物語風に。', icon: '👴🏼', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/JBFqnCBsd6RMkjVDRZzb/e6206d1a-0721-4787-aafb-06a6e705cac5.mp3' },
-    { id: 'SAz9YHcvj6GT2YYXdXww', name: 'リバー (River)', desc: 'ジェンダーレスで中世的、非常に落ち着いた声。', icon: '🌿', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/SAz9YHcvj6GT2YYXdXww/e6c95f0b-2227-491a-b3d7-2249240decb7.mp3' },
+    // --- 女性 ---
+    { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'アリス (Alice)', gender: 'female', desc: '落ち着いた優しい女性の声。リラックスに最適。', icon: '👩🏻', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/Xb7hH8MSUJpSbSDYk0k2/d10f7534-11f6-41fe-a012-2de1e482d336.mp3' },
+    { id: 'XrExE9yKIg1WjnnlVkGX', name: 'マチルダ (Matilda)', gender: 'female', desc: '明るく元気な女性の声。モチベーションアップに！', icon: '👧🏼', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/XrExE9yKIg1WjnnlVkGX/b930e18d-6b4d-466e-bab2-0ae97c6d8535.mp3' },
+    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'サラ (Sarah)', gender: 'female', desc: '柔らかく温かみのある女性の声。安心感があります。', icon: '👩🏽', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/01a3e33c-6e99-4ee7-8543-ff2216a32186.mp3' },
+    { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'ローラ (Laura)', gender: 'female', desc: '少しクセのある元気な声。個性的な響きです。', icon: '👱‍♀️', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/FGY2WhTYpPnrIDTdsKH5/67341759-ad08-41a5-be6e-de12fe448618.mp3' },
+    { id: 'cgSgspJ2msm6clMCkdW9', name: 'ジェシカ (Jessica)', gender: 'female', desc: '可愛らしくて温かい声。親しみやすさ抜群。', icon: '🌸', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/cgSgspJ2msm6clMCkdW9/56a97bf8-b69b-448f-846c-c3a11683d45a.mp3' },
+    { id: 'hpp4J3VqNfWAUOO0d1Us', name: 'ベラ (Bella)', gender: 'female', desc: 'プロフェッショナルで明るく、温かい声。', icon: '💎', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/hpp4J3VqNfWAUOO0d1Us/dab0f5ba-3aa4-48a8-9fad-f138fea1126d.mp3' },
+    { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'リリー (Lily)', gender: 'female', desc: '滑らかで女優のような、心地よい質感の声。', icon: '🌷', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/pFZP5JQG7iQjIQuC4Bku/89b68b35-b3dd-4348-a84a-a3c13a3c2b30.mp3' },
+
+    // --- 男性 ---
+    { id: 'cjVigY5qzO86Huf0OWal', name: 'エリック (Eric)', gender: 'male', desc: '親しみやすくバランスの良い男性の声。', icon: '👨🏻', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/cjVigY5qzO86Huf0OWal/d098fda0-6456-4030-b3d8-63aa048c9070.mp3' },
+    { id: 'nPczCjzI2devNBz1zQrb', name: 'ブライアン (Brian)', gender: 'male', desc: '深く渋い男性の声。説得力と落ち着きがあります。', icon: '👨🏽‍🦳', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/nPczCjzI2devNBz1zQrb/2dd3e72c-4fd3-42f1-93ea-abc5d4e5aa1d.mp3' },
+    { id: 'IKne3meq5aSn9XLyUdCD', name: 'チャーリー (Charlie)', gender: 'male', desc: 'ハキハキとした自信に満ちた声。テンション高め！', icon: '👦🏻', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/IKne3meq5aSn9XLyUdCD/102de6f2-22ed-43e0-a1f1-111fa75c5481.mp3' },
+    { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'ジョージ (George)', gender: 'male', desc: '温かく語りかけるようなおじさまの声。豊かな包容力。', icon: '👴🏼', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/JBFqnCBsd6RMkjVDRZzb/e6206d1a-0721-4787-aafb-06a6e705cac5.mp3' },
+    { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'カラム (Callum)', gender: 'male', desc: 'ハスキーで少しクセのある男性の声。', icon: '👔', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/N2lVS1w4EtoT3dr4eOWO/ac833bd8-ffda-4938-9ebc-b0f99ca25481.mp3' },
+    { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'リアム (Liam)', gender: 'male', desc: 'エネルギッシュな若い男性のクリエイターボイス。', icon: '👓', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/TX3LPaxmHKxFdv7VOQHJ/63148076-6363-42db-aea8-31424308b92c.mp3' },
+    { id: 'SOYHLrjzK2X1ezoPC6cr', name: 'ハリー (Harry)', gender: 'male', desc: '激しく力強い男性の声。モチベーション限界突破！', icon: '🔥', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/SOYHLrjzK2X1ezoPC6cr/86d178f6-f4b6-4e0e-85be-3de19f490794.mp3' },
+    { id: 'bIHbv24MWmeRgasZH58o', name: 'ウィル (Will)', gender: 'male', desc: 'フレンドリーで親しみやすい若者の声。', icon: '🧢', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/bIHbv24MWmeRgasZH58o/8caf8f3d-ad29-4980-af41-53f20c72d7a4.mp3' },
+    { id: 'SAz9YHcvj6GT2YYXdXww', name: 'リバー (River)', gender: 'male', desc: 'ジェンダーレスで中世的、非常に落ち着いた声。', icon: '🌿', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/SAz9YHcvj6GT2YYXdXww/e6c95f0b-2227-491a-b3d7-2249240decb7.mp3' },
+    { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'ロジャー (Roger)', gender: 'male', desc: 'カジュアルでゆったりとした、響く男性の声。', icon: '🏕️', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/CwhRBWXzGAHq8TQ4Fs17/58ee3ff5-f6f2-4628-93b8-e38eb31806b0.mp3' },
+    { id: 'iP95p4xoKVk53GoZ742B', name: 'クリス (Chris)', gender: 'male', desc: 'チャーミングで地に足のついた声。', icon: '☕', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/iP95p4xoKVk53GoZ742B/3f4bde72-cc48-40dd-829f-57fbf906f4d7.mp3' },
+    { id: 'onwK4e9ZLuTAKqWW03F9', name: 'ダニエル (Daniel)', gender: 'male', desc: '安定した放送局のアナウンサーのような声。', icon: '🎙️', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/onwK4e9ZLuTAKqWW03F9/7eee0236-1a72-4b86-b303-5dcadc007ba9.mp3' },
+    { id: 'pNInz6obpgDQGcFmaJgB', name: 'アダム (Adam)', gender: 'male', desc: '強固で圧倒的なカリスマを持つ男性の声。', icon: '👑', preview: 'https://storage.googleapis.com/eleven-public-prod/premade/voices/pNInz6obpgDQGcFmaJgB/d6905d7a-dd26-4187-bfff-1bd3a5ea7cac.mp3' },
   ];
 
   const [theme, setTheme] = useState('');
@@ -36,10 +53,12 @@ export function GenerateScreen({ route, navigation }: any) {
   const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('female');
   const { affirmations, addAffirmation, isDarkMode, savedTexts, addSavedText, elevenLabsApiKey, setElevenLabsApiKey } = useAppStore();
 
   const [playingPreviewId, setPlayingPreviewId] = useState<string | null>(null);
   const [previewSound, setPreviewSound] = useState<Audio.Sound | null>(null);
+  const [isAIModalVisible, setIsAIModalVisible] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -48,6 +67,7 @@ export function GenerateScreen({ route, navigation }: any) {
       }
     };
   }, [previewSound]);
+
 
   const togglePreview = async (voiceId: string) => {
     try {
@@ -71,12 +91,12 @@ export function GenerateScreen({ route, navigation }: any) {
       setPlayingPreviewId(voiceId);
       
       const voice = AI_VOICES.find(v => v.id === voiceId);
-      if (!voice || !voice.preview) {
+      const url = voice?.preview;
+      if (!voice || !url) {
         setPlayingPreviewId(null);
         Alert.alert('エラー', 'プレビューが見つかりません');
         return;
       }
-      const url = voice.preview;
 
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, allowsRecordingIOS: false });
       const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true });
@@ -207,7 +227,8 @@ export function GenerateScreen({ route, navigation }: any) {
     }
   };
 
-  const handleGenerateAudio = async () => {
+  const startGenerateAudioProcess = async () => {
+    setIsAIModalVisible(false);
     if (!generatedText) return;
     
     let base64Audio: string | undefined = undefined;
@@ -319,8 +340,75 @@ export function GenerateScreen({ route, navigation }: any) {
     }
   };
 
+  // --- AI同意モーダルのレンダリング ---
+  const renderAIConfirmationModal = () => (
+    <Modal
+      visible={isAIModalVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setIsAIModalVisible(false)}
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <View style={{ 
+          backgroundColor: isDarkMode ? '#1e1e2e' : '#fff', 
+          borderRadius: 20, 
+          padding: 24, 
+          width: '100%',
+          borderWidth: 1,
+          borderColor: 'rgba(255,149,0,0.5)'
+        }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: textColor, marginBottom: 16 }}>⚠️ データ送信に関する同意</Text>
+          
+          <Text style={{ color: subTextColor, fontSize: 13, lineHeight: 20, marginBottom: 16 }}>
+            音声合成を開始するために、以下のデータを第三者AIサービスへ送信します：
+          </Text>
+
+          <View style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+              <Text style={{ color: textColor, fontWeight: 'bold', width: 80, fontSize: 13 }}>送信データ:</Text>
+              <Text style={{ color: subTextColor, flex: 1, fontSize: 13 }}>・テキスト内容{'\n'}・音声サンプル(ボイスクローン時)</Text>
+            </View>
+            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+              <Text style={{ color: textColor, fontWeight: 'bold', width: 80, fontSize: 13 }}>送信先:</Text>
+              <Text style={{ color: subTextColor, flex: 1, fontSize: 13 }}>OpenAI, ElevenLabs</Text>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ color: textColor, fontWeight: 'bold', width: 80, fontSize: 13 }}>利用目的:</Text>
+              <Text style={{ color: subTextColor, flex: 1, fontSize: 13 }}>アファメーション音声の合成のみに使用され、AIの学習には利用されません。</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            onPress={() => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub')}
+            style={{ marginBottom: 20 }}
+          >
+            <Text style={{ color: '#007AFF', fontSize: 12, textDecorationLine: 'underline', textAlign: 'center' }}>
+              プライバシーポリシーで詳細を確認する
+            </Text>
+          </TouchableOpacity>
+
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity 
+              onPress={() => setIsAIModalVisible(false)}
+              style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: isDarkMode ? '#2d2d3e' : '#f0f0f0', alignItems: 'center' }}
+            >
+              <Text style={{ color: textColor, fontWeight: '600' }}>キャンセル</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={startGenerateAudioProcess}
+              style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#34C759', alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>同意して合成</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
+      {renderAIConfirmationModal()}
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: textColor }]}>AIアファメーション作成</Text>
         <Text style={[styles.subtitle, { color: subTextColor }]}>AIが前向きな言葉を作成し、あなたの声で読み上げます</Text>
@@ -454,7 +542,10 @@ export function GenerateScreen({ route, navigation }: any) {
         {voiceType === 'system' && (
           <View style={{ marginTop: 8 }}>
             <TouchableOpacity 
-              onPress={() => setShowVoiceSelect(!showVoiceSelect)}
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setShowVoiceSelect(!showVoiceSelect);
+              }}
               style={{ 
                 flexDirection: 'row', 
                 alignItems: 'center', 
@@ -475,8 +566,30 @@ export function GenerateScreen({ route, navigation }: any) {
             </TouchableOpacity>
 
             {showVoiceSelect && (
-              <View style={{ backgroundColor: cardBg, marginTop: 8, padding: 8, borderRadius: 12, borderWidth: 1, borderColor }}>
-                {AI_VOICES.map((v) => (
+              <View style={{ backgroundColor: cardBg, marginTop: 12, padding: 8, borderRadius: 12, borderWidth: 1, borderColor }}>
+                {/* 性別切り替えタブ */}
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12, paddingHorizontal: 4 }}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setSelectedGender('female');
+                    }}
+                    style={[{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1 }, selectedGender === 'female' ? { backgroundColor: isDarkMode ? 'rgba(255, 105, 180, 0.15)' : 'rgba(255, 105, 180, 0.1)', borderColor: '#FF69B4' } : { backgroundColor: 'transparent', borderColor: borderColor }]}
+                  >
+                    <Text style={{ color: selectedGender === 'female' ? (isDarkMode ? '#FF69B4' : '#E0338F') : textColor, fontWeight: 'bold', fontSize: 13 }}>👱‍♀️ 女性</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setSelectedGender('male');
+                    }}
+                    style={[{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1 }, selectedGender === 'male' ? { backgroundColor: isDarkMode ? 'rgba(0, 191, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)', borderColor: isDarkMode ? '#00BFFF' : '#007AFF' } : { backgroundColor: 'transparent', borderColor: borderColor }]}
+                  >
+                    <Text style={{ color: selectedGender === 'male' ? (isDarkMode ? '#00BFFF' : '#007AFF') : textColor, fontWeight: 'bold', fontSize: 13 }}>👱‍♂️ 男性</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {AI_VOICES.filter(v => v.gender === selectedGender).map((v) => (
                   <TouchableOpacity
                     key={v.id}
                     onPress={() => { setSystemVoiceId(v.id); setShowVoiceSelect(false); }}
@@ -563,7 +676,7 @@ export function GenerateScreen({ route, navigation }: any) {
                     <Text style={{ color: subTextColor, fontSize: 13, lineHeight: 18 }}>
                       ブラウザで「ElevenLabs」と検索するか、
                       <Text 
-                        style={{ color: '#FFFFFF', textDecorationLine: 'underline' }} 
+                        style={{ color: activeColor, textDecorationLine: 'underline' }} 
                         onPress={() => Linking.openURL('https://elevenlabs.io/')}
                       >
                         elevenlabs.io
@@ -627,13 +740,22 @@ export function GenerateScreen({ route, navigation }: any) {
 
       {/* 3. 音声合成セクション */}
       <View style={[styles.sectionContainer, { backgroundColor: cardBg, borderColor, alignItems: 'center' }, !generatedText && { opacity: 0.5 }]}>
-        <Text style={[styles.label, { color: textColor, marginBottom: 16 }]}>3. 前向きなフレーズを音声にする</Text>
+        <Text style={[styles.label, { color: textColor, marginBottom: 8 }]}>3. 前向きなフレーズを音声にする</Text>
+        
+        <Text style={{ color: subTextColor, fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
+          ※「音声を合成して保存」をタップすると、データ送信への同意画面が表示されます。
+        </Text>
+
         {isGeneratingAudio ? (
           <ActivityIndicator color="#00F2FE" size="large" />
         ) : (
           <TouchableOpacity 
-            style={[styles.generateButton, { backgroundColor: '#34C759', width: '100%' }, !generatedText && styles.disabledButton]} 
-            onPress={handleGenerateAudio}
+            style={[
+              styles.generateButton, 
+              { backgroundColor: '#34C759', width: '100%' }, 
+              !generatedText && styles.disabledButton
+            ]} 
+            onPress={() => setIsAIModalVisible(true)}
             disabled={!generatedText || isGeneratingAudio}
           >
             <Mic color="#FFFFFF" size={20} style={{ marginRight: 8 }} />

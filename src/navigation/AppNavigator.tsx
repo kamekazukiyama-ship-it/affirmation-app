@@ -6,7 +6,7 @@ import { GenerateScreen } from '../screens/GenerateScreen';
 import { MenuScreen } from '../screens/MenuScreen';
 import { PlaylistScreen } from '../screens/PlaylistScreen';
 import { SettingScreen } from '../screens/SettingScreen';
-import { Home, Mic, Sparkles, Settings, Library, Circle } from 'lucide-react-native';
+import { Home, Mic, Sparkles, Settings, Play, Circle } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
@@ -56,7 +56,7 @@ export function AppNavigator() {
           component={PlayerScreen} 
           options={{
             title: 'プレイヤー',
-            tabBarIcon: ({ color, size }) => <Library color={color} size={size} />
+            tabBarIcon: ({ color, size }) => <Play color={color} size={size} />
           }}
         />
         <Tab.Screen 
