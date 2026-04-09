@@ -9,7 +9,7 @@ import { getFunctions } from 'firebase/functions';
 // TODO: カズさん、Firebase Consoleでプロジェクトを作成し、以下の設定を書き換えてください。
 // 必要な機能: Authentication (今回は匿名認証またはメール/パスを推奨), Firestore Database, Storage
 const firebaseConfig = {
-  apiKey: "AIzaSyAderNngXTZRPaD-9pQenaHL49HHqtiu6U",
+  apiKey: "AIzaSyBouSZzTLorH6Svt2vShNg4G4mLeRHb8TY",
   authDomain: "baisokuaffa.firebaseapp.com",
   projectId: "baisokuaffa",
   storageBucket: "baisokuaffa.firebasestorage.app",

@@ -42,7 +42,7 @@ export function DashboardScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.greeting, { color: subTextColor }]}>おはようございます</Text>
-            <Text style={[styles.title, { color: textColor }]}>AI×倍速×アファーメーション</Text>
+            <Text style={[styles.title, { color: textColor }]}>AI×倍速×アファメーション</Text>
           </View>
           <View style={[styles.streakBadge, { backgroundColor: isDarkMode ? '#331B1B' : '#FFF3E0' }]}>
             <Flame color="#FF9500" size={20} />
