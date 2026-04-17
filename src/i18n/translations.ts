@@ -32,7 +32,7 @@ export const translations = {
     },
     gen: {
       title: 'AIアファメーション作成',
-      subtitle: 'AIが前向きな言葉を作成し、あなたの声で読み上げます',
+      subtitle: 'AIが前向きな言葉を作成し、AIが音声を作ります',
       section1: '1. 読み上げる文章を作成する',
       step1: '① まずは主語のパターンを選びます',
       subjI: '私',
@@ -212,7 +212,7 @@ export const translations = {
     },
     gen: {
       title: 'AI Affirmation Creator',
-      subtitle: 'AI creates positive words and reads them in your voice',
+      subtitle: 'AI creates positive words and synthesizes AI voices',
       section1: '1. Create the Text to Read',
       step1: 'Step 1: Choose a Subject Pattern',
       subjI: 'I',
@@ -221,7 +221,7 @@ export const translations = {
       namePlaceholder: 'Enter your nickname (e.g., Kazu, K-kun, etc.)',
       section2: '2. Select Narration Voice',
       step2: 'Step 2: Choose a Category',
-      section3: '3. Edit Freely',
+      section3: '3. Generate AI Voice',
       step3: 'Step 3: Finally, edit freely',
       textPlaceholder: 'Enter affirmations here or auto-generate using the buttons above',
       btnGen: 'Auto-Generate with AI',

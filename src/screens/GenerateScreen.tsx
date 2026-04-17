@@ -450,26 +450,26 @@ export function GenerateScreen({ route, navigation }: any) {
     <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
       {renderAIConfirmationModal()}
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={[styles.title, { color: textColor }]}>{getTranslation(language, 'gen', 'title')}</Text>
-            <Text style={[styles.subtitle, { color: subTextColor }]}>{getTranslation(language, 'gen', 'subtitle')}</Text>
+        <View style={{ marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+            <Text style={[styles.title, { color: textColor, marginRight: 12 }]}>{getTranslation(language, 'gen', 'title')}</Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Premium')}
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,149,0,0.15)' : 'rgba(255,149,0,0.1)', 
+                paddingHorizontal: 10, 
+                paddingVertical: 4, 
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(255,149,0,0.3)',
+                alignItems: 'center'
+              }}
+            >
+              <Text style={{ color: '#FF9500', fontSize: 9, marginBottom: -2 }}>{getTranslation(language, 'gen', 'pointsLabel')}</Text>
+              <Text style={{ color: '#FF9500', fontWeight: 'bold', fontSize: 13 }}>{pointBalance} <Text style={{ fontSize: 10, fontWeight: 'normal' }}>pt</Text></Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('Premium')}
-            style={{ 
-              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', 
-              paddingHorizontal: 16, 
-              paddingVertical: 8, 
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: inputBorder,
-              alignItems: 'center'
-            }}
-          >
-            <Text style={{ color: subTextColor, fontSize: 10, marginBottom: 2 }}>{getTranslation(language, 'gen', 'pointsLabel')}</Text>
-            <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>{pointBalance} <Text style={{ fontSize: 10 }}>pt</Text></Text>
-          </TouchableOpacity>
+          <Text style={[styles.subtitle, { color: subTextColor, lineHeight: 20 }]}>{getTranslation(language, 'gen', 'subtitle')}</Text>
         </View>
 
       {/* 1. テキスト作成セクション */}

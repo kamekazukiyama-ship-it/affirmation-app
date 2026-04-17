@@ -160,8 +160,9 @@ const PlayerHeader = React.memo(({
   showSettings, setShowSettings, MemoizedBgmRow, 
   voiceVolume, adjustVol, setVoiceVolume, bgmType, handleBgmPlayToggle, 
   isBgmLoading, bgmIsPlaying, handleBgmStop, bgmVolume, setBgmVolume,
-  MemoizedTabsRow, activePlaylistId, playlists, language
+  MemoizedTabsRow, activePlaylistId, playlists
 }: any) => {
+  const language = useAppStore(state => state.language);
   return (
     <View style={{ paddingBottom: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 12 }}>
@@ -857,7 +858,7 @@ const isPremium = membershipType === 'premium';
         ))}
       </View>
     );
-  }, [activeTab, activePlaylistId, activeColor, inactiveColor, textColor]);
+  }, [activeTab, activePlaylistId, activeColor, inactiveColor, textColor, language]);
 
   const MemoizedBgmRow = React.useMemo(() => {
     return (
@@ -865,9 +866,13 @@ const isPremium = membershipType === 'premium';
         <Text style={{color: textColor, fontSize: 13, marginRight: 8, width: 60}}>{getTranslation(language, 'player', 'bgmSelect')}</Text>
         <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
           <View style={{ flexDirection: 'column' }}>
-            {['定番', 'ソルフェ', '自然'].map(category => (
-              <View key={category} style={{ flexDirection: 'row', marginBottom: 8 }}>
-                {BGM_LIST.filter(b => b.tag === category || (category === '定番' && b.id === 'none')).map((bgm) => (
+            {[
+              { ja: '定番', en: 'Classic' },
+              { ja: 'ソルフェ', en: 'Solfeggio' },
+              { ja: '自然', en: 'Nature' }
+            ].map(cat => (
+              <View key={cat.en} style={{ flexDirection: 'row', marginBottom: 8 }}>
+                {BGM_LIST.filter(b => b.tag === (language === 'en' ? cat.en : cat.ja) || (cat.ja === '定番' && b.id === 'none')).map((bgm) => (
                   <TouchableOpacity 
                     key={bgm.id} 
                     style={[
@@ -922,7 +927,7 @@ const isPremium = membershipType === 'premium';
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Plus color={activeColor} size={14} style={{ marginRight: 4 }} />
-                  <Text style={{color: activeColor, fontSize: 11, fontWeight: 'bold'}}>追加</Text>
+                  <Text style={{color: activeColor, fontSize: 11, fontWeight: 'bold'}}>{language === 'en' ? 'Add' : '追加'}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -930,7 +935,7 @@ const isPremium = membershipType === 'premium';
         </ScrollView>
       </View>
     );
-  }, [bgmType, customBgms, isPremium, textColor, activeColor, inactiveColor, borderColor, isBgmLoading]);
+  }, [bgmType, customBgms, isPremium, textColor, activeColor, inactiveColor, borderColor, isBgmLoading, language]);
 
   const headerProps = {
     currentStreak, setShowCalendar, MemoizedAffirmationArea, 
@@ -951,7 +956,7 @@ const isPremium = membershipType === 'premium';
     isPaused, speed, showSettings, MemoizedBgmRow, voiceVolume, 
     bgmIsPlaying, bgmVolume, MemoizedTabsRow, 
     activePlaylistId, activeColor, textColor, inactiveColor, subTextColor, 
-    cardBg, borderColor, isBgmLoading, bgmType, playlists
+    cardBg, borderColor, isBgmLoading, bgmType, playlists, language
   ]);
 
 
@@ -977,7 +982,7 @@ const isPremium = membershipType === 'premium';
         <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: textColor }]}>記録カレンダー</Text>
+              <Text style={[styles.modalTitle, { color: textColor }]}>{getTranslation(language, 'dash', 'calTitle')}</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setShowCalendar(false)}>
                 <X color={textColor} size={28} />
               </TouchableOpacity>
@@ -986,7 +991,7 @@ const isPremium = membershipType === 'premium';
               <View style={{ alignItems: 'center', marginBottom: 24 }}>
                 <Flame color="#FF9500" size={48} />
                 <Text style={{ color: textColor, fontSize: 24, fontWeight: 'bold', marginTop: 12 }}>
-                  現在 {currentStreak || 0} 日連続！
+                  {getTranslation(language, 'dash', 'currentStreak').replace('{0}', String(currentStreak || 0))}
                 </Text>
               </View>
 
