@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, SafeAreaView, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore, Affirmation } from '../store/useAppStore';
+import { getTranslation } from '../i18n/translations';
 import { Play, Plus, BookText, Trash2, Library, CheckCircle2, Circle, X, Mic, Sparkles, Share2, FileDown } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 
 export function PlaylistScreen({ route, navigation }: any) {
-  const { isDarkMode, playlists, savedTexts, affirmations, addPlaylist, removePlaylist, removeSavedText, removeAffirmation } = useAppStore();
+  const { isDarkMode, language, playlists, savedTexts, affirmations, addPlaylist, removePlaylist, removeSavedText, removeAffirmation } = useAppStore();
   const themeColors = isDarkMode ? ['#0f172a', '#1e293b'] : ['#f8fafc', '#e2e8f0'];
   const textColor = isDarkMode ? '#F8FAFC' : '#1E293B';
   const subTextColor = isDarkMode ? '#94A3B8' : '#64748B';
@@ -242,7 +243,7 @@ export function PlaylistScreen({ route, navigation }: any) {
       </View>
       <View style={styles.cardContent}>
         <Text style={[styles.cardTitle, { color: textColor }]}>{item.name}</Text>
-        <Text style={[styles.cardSub, { color: subTextColor }]}>{item.itemIds.length} 曲収録</Text>
+        <Text style={[styles.cardSub, { color: subTextColor }]}>{getTranslation(language, 'library', 'countTracks').replace('{0}', item.itemIds.length.toString())}</Text>
       </View>
       <TouchableOpacity 
         style={[styles.playBtn, { backgroundColor: activeColor }]} 
@@ -295,7 +296,7 @@ export function PlaylistScreen({ route, navigation }: any) {
         <View style={styles.cardContent}>
           <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Text>
           <Text style={[styles.cardSub, { color: subTextColor }]} numberOfLines={2}>
-            {item.text || '録音データ'}
+            {item.text || getTranslation(language, 'library', 'recLabel')}
           </Text>
         </View>
         <TouchableOpacity 
@@ -323,14 +324,14 @@ export function PlaylistScreen({ route, navigation }: any) {
     <LinearGradient colors={themeColors as any} style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 }}>
-          <Text style={[styles.headerTitle, { color: textColor, marginHorizontal: 0, marginTop: 0, marginBottom: 0 }]}>ライブラリ</Text>
+          <Text style={[styles.headerTitle, { color: textColor, marginHorizontal: 0, marginTop: 0, marginBottom: 0 }]}>{getTranslation(language, 'library', 'title')}</Text>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <TouchableOpacity 
               onPress={handleImportAffirmation} 
               style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}
             >
               <FileDown color={textColor} size={20} />
-              <Text style={{ color: textColor, fontSize: 13, fontWeight: 'bold' }}>読込</Text>
+              <Text style={{ color: textColor, fontSize: 13, fontWeight: 'bold' }}>{getTranslation(language, 'library', 'import')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('Menu')} style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor }}>
               <X color={textColor} size={24} />
@@ -348,8 +349,8 @@ export function PlaylistScreen({ route, navigation }: any) {
             <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(0,122,255,0.1)' : '#E5F1FF' }]}>
               <Library color="#007AFF" size={36} />
             </View>
-            <Text style={[styles.gridTitle, { color: textColor }]}>プレイリスト</Text>
-            <Text style={[styles.gridSub, { color: subTextColor }]}>{playlists.length} 個のフォルダ</Text>
+            <Text style={[styles.gridTitle, { color: textColor }]}>{getTranslation(language, 'library', 'catPlaylist')}</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{getTranslation(language, 'library', 'countFolder').replace('{0}', playlists.length.toString())}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -360,8 +361,8 @@ export function PlaylistScreen({ route, navigation }: any) {
             <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(255,59,48,0.1)' : '#FFEBEB' }]}>
               <Mic color="#FF3B30" size={36} />
             </View>
-            <Text style={[styles.gridTitle, { color: textColor }]}>録音データ</Text>
-            <Text style={[styles.gridSub, { color: subTextColor }]}>{affirmations.filter(a => !a.title.includes('AI生成')).length} 個の録音</Text>
+            <Text style={[styles.gridTitle, { color: textColor }]}>{getTranslation(language, 'library', 'catRec')}</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{getTranslation(language, 'library', 'countRec').replace('{0}', affirmations.filter(a => !a.title.includes('AI生成')).length.toString())}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -372,8 +373,8 @@ export function PlaylistScreen({ route, navigation }: any) {
             <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(0,122,255,0.1)' : '#E5F1FF' }]}>
               <Sparkles color="#007AFF" size={36} />
             </View>
-            <Text style={[styles.gridTitle, { color: textColor }]}>AI生成データ</Text>
-            <Text style={[styles.gridSub, { color: subTextColor }]}>{affirmations.filter(a => a.title.includes('AI生成')).length} 個のAI</Text>
+            <Text style={[styles.gridTitle, { color: textColor }]}>{getTranslation(language, 'library', 'catAi')}</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{getTranslation(language, 'library', 'countAi').replace('{0}', affirmations.filter(a => a.title.includes('AI生成')).length.toString())}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -384,8 +385,8 @@ export function PlaylistScreen({ route, navigation }: any) {
             <View style={[styles.gridIconBox, { backgroundColor: isDarkMode ? 'rgba(52,199,89,0.1)' : '#E8F5E9' }]}>
               <BookText color="#34C759" size={36} />
             </View>
-            <Text style={[styles.gridTitle, { color: textColor }]}>保存テキスト</Text>
-            <Text style={[styles.gridSub, { color: subTextColor }]}>{savedTexts.length} 個の文章</Text>
+            <Text style={[styles.gridTitle, { color: textColor }]}>{getTranslation(language, 'library', 'catText')}</Text>
+            <Text style={[styles.gridSub, { color: subTextColor }]}>{getTranslation(language, 'library', 'countText').replace('{0}', savedTexts.length.toString())}</Text>
           </TouchableOpacity>
         </View>
 
@@ -397,7 +398,10 @@ export function PlaylistScreen({ route, navigation }: any) {
               <X color={textColor} size={28} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: textColor }]}>
-              {activeTab === 'playlists' ? 'プレイリスト' : activeTab === 'texts' ? '保存テキスト' : activeTab === 'mic' ? '録音データ' : 'AI生成データ'}
+              {activeTab === 'playlists' ? getTranslation(language, 'library', 'catPlaylist') : 
+               activeTab === 'texts' ? getTranslation(language, 'library', 'catText') : 
+               activeTab === 'mic' ? getTranslation(language, 'library', 'catRec') : 
+               getTranslation(language, 'library', 'catAi')}
             </Text>
             <View style={{ width: 36 }} />
           </View>
@@ -420,7 +424,7 @@ export function PlaylistScreen({ route, navigation }: any) {
             >
               <Plus color={activeColor} size={20} style={{ marginRight: 8 }} />
               <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>
-                {activeTab === 'playlists' ? '新規作成' : 'AI生成画面で保存する'}
+                {activeTab === 'playlists' ? getTranslation(language, 'library', 'modalNew') : getTranslation(language, 'library', 'modalAiGen')}
               </Text>
             </TouchableOpacity>
           )}
@@ -445,14 +449,14 @@ export function PlaylistScreen({ route, navigation }: any) {
                 <View style={{ backgroundColor: 'rgba(107,78,255,0.08)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor, flexDirection: 'row', alignItems: 'center' }}>
                   <Share2 color={activeColor} size={18} />
                   <Text style={{ color: subTextColor, fontSize: 13, fontWeight: '500', marginLeft: 10, flex: 1 }}>
-                    このシェアボタンで音声データを友達に送れます。🎵
+                    {getTranslation(language, 'library', 'shareNotice')}
                   </Text>
                 </View>
               ) : null
             }
             ListEmptyComponent={
               <View style={styles.emptyBox}>
-                <Text style={{ color: subTextColor, textAlign: 'center', lineHeight: 24 }}>データがありません</Text>
+                <Text style={{ color: subTextColor, textAlign: 'center', lineHeight: 24 }}>{getTranslation(language, 'library', 'empty')}</Text>
               </View>
             }
           />
@@ -466,7 +470,9 @@ export function PlaylistScreen({ route, navigation }: any) {
             <TouchableOpacity onPress={() => setCreateModalVisible(false)} style={{ padding: 4 }}>
               <X color={textColor} size={28} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: textColor }]}>プレイリスト作成</Text>
+            <Text style={[styles.modalTitle, { color: textColor }]}>
+              {editingPlaylistId ? getTranslation(language, 'library', 'editTitle') : getTranslation(language, 'library', 'createTitle')}
+            </Text>
             <TouchableOpacity 
               style={{ padding: 4 }}
               onPress={() => {
@@ -492,19 +498,19 @@ export function PlaylistScreen({ route, navigation }: any) {
                 setCreateModalVisible(false);
               }}
             >
-              <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>保存</Text>
+              <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>{getTranslation(language, 'library', 'save')}</Text>
             </TouchableOpacity>
           </View>
           
           <TextInput
             style={[styles.modalInput, { backgroundColor: cardBg, color: textColor, borderColor }]}
-            placeholder="プレイリスト名を入力"
+            placeholder={getTranslation(language, 'library', 'inputPlName')}
             placeholderTextColor={subTextColor}
             value={newPlaylistName}
             onChangeText={setNewPlaylistName}
           />
           
-          <Text style={[styles.label, { color: textColor, marginTop: 24, marginBottom: 12 }]}>収録する音声を選ぶ</Text>
+          <Text style={[styles.label, { color: textColor, marginTop: 24, marginBottom: 12 }]}>{getTranslation(language, 'library', 'selectAff')}</Text>
           <FlatList
             data={affirmations}
             keyExtractor={item => item.id}

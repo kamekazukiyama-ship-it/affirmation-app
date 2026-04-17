@@ -1,14 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Settings, Library, ChevronRight } from 'lucide-react-native';
+import { Settings, Library, ChevronRight, Zap, Star } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
+import { getTranslation } from '../i18n/translations';
 
 const { width } = Dimensions.get('window');
 
 export function MenuScreen() {
   const navigation = useNavigation<any>();
-  const { isDarkMode } = useAppStore();
+  const { isDarkMode, language } = useAppStore();
 
   const bgColor = isDarkMode ? '#0A0A1A' : '#F8F9FA';
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
@@ -18,16 +19,24 @@ export function MenuScreen() {
 
   const menuItems = [
     {
-      title: 'ライブラリ',
-      description: '作成したプレイリストや保存したテキスト',
+      title: getTranslation(language, 'menu', 'libraryTitle'),
+      description: getTranslation(language, 'menu', 'libraryDesc'),
       icon: <Library color="#007AFF" size={32} />,
       route: 'Playlists',
       color: '#007AFF',
       bgColor: isDarkMode ? 'rgba(0, 122, 255, 0.1)' : '#E5F1FF'
     },
     {
-      title: '設定',
-      description: 'アプリの基本設定や背景画像の変更',
+      title: getTranslation(language, 'menu', 'premiumTitle'),
+      description: getTranslation(language, 'menu', 'premiumDesc'),
+      icon: <Star color="#FFD700" size={32} />,
+      route: 'Premium',
+      color: '#FFD700',
+      bgColor: isDarkMode ? 'rgba(255, 215, 0, 0.1)' : '#FFF9C4'
+    },
+    {
+      title: getTranslation(language, 'menu', 'settingsTitle'),
+      description: getTranslation(language, 'menu', 'settingsDesc'),
       icon: <Settings color="#34C759" size={32} />,
       route: 'Settings',
       color: '#34C759',
@@ -39,10 +48,10 @@ export function MenuScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <Text style={{ fontSize: 28, fontWeight: 'bold', color: textColor, marginBottom: 8, marginTop: 24 }}>
-          メニュー
+          {getTranslation(language, 'menu', 'title')}
         </Text>
         <Text style={{ fontSize: 15, color: subTextColor, marginBottom: 32 }}>
-          アプリの設定やプレイリストの管理を行います
+          {getTranslation(language, 'menu', 'subtitle')}
         </Text>
 
         <View style={{ gap: 16 }}>

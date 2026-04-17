@@ -49,6 +49,12 @@ export const createVoiceCloneAndAudio = functions
   .region('asia-northeast1')
   .runWith({ timeoutSeconds: 300, memory: '1GB' }) // 音声処理・通信のため長めに設定
   .https.onCall(async (data, context) => {
+    // 認証チェック
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'ログインが必要です。');
+    }
+    const uid = context.auth.uid;
+
     try {
       const text = data.text;
       const audioBase64 = data.audioBase64; // (任意) クローン元の音声データ
@@ -63,6 +69,35 @@ export const createVoiceCloneAndAudio = functions
         throw new functions.https.HttpsError('internal', 'ElevenLabsのAPIキーが設定されていません。');
       }
 
+      // １．ポイント消費のチェックと減算 (自前APIキーがない場合のみ)
+      const charCount = text.length;
+      if (!data.userApiKey) {
+        const userRef = admin.firestore().collection('users').doc(uid);
+        
+        await admin.firestore().runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'ユーザーデータが見つかりません。');
+          }
+          
+          const currentPoints = userDoc.data()?.points || 0;
+          if (currentPoints < charCount) {
+            throw new functions.https.HttpsError(
+              'failed-precondition', 
+              `ポイントが足りません（必要: ${charCount}pt / 現在: ${currentPoints}pt）。\nプレミアム画面でポイントを追加してください。`
+            );
+          }
+          
+          // ポイントを減算
+          transaction.update(userRef, {
+            points: admin.firestore.FieldValue.increment(-charCount)
+          });
+        });
+        console.log(`Deducted ${charCount} points from user ${uid}`);
+      } else {
+        console.log(`User provided own API key. Skipping point deduction for user ${uid}`);
+      }
+
       let voiceId = systemVoiceId;
       let isCustomVoice = false;
 
@@ -72,7 +107,7 @@ export const createVoiceCloneAndAudio = functions
            // 開発者（無料ユーザー）キーによるクローン作成は絶対禁止とする（上限超過防止）
            throw new functions.https.HttpsError(
              'permission-denied', 
-             'あなた自身の声（クローン）を使用するには、ElevenLabsの無料APIキーを取得して設定してください。'
+             'あなた自身の声（クローン）を使用するには、ElevenLabsのAPIキーを取得して設定してください。'
            );
         }
 
@@ -100,9 +135,18 @@ export const createVoiceCloneAndAudio = functions
         } catch (cloneError: any) {
           console.error("Voice Clone Error:", cloneError?.response?.data || cloneError);
           const errMsg = cloneError?.response?.data?.detail?.message || cloneError.message || '不明なエラー';
+          
+          // 自前キーのエラーで、かつ容量不足（Quota）っぽい場合は特別なエラーを返す
+          if (cloneError?.response?.status === 401 || cloneError?.response?.status === 429) {
+            throw new functions.https.HttpsError(
+              'resource-exhausted',
+              `自前のAPIキーの利用制限に達したか、無効なキーです。ポイントをチャージしてアプリ標準の音声を利用するか、ElevenLabsのプランをアップグレードしてください。\n詳細: ${errMsg}`
+            );
+          }
+
           throw new functions.https.HttpsError(
-            'resource-exhausted',
-            `音声クローンの作成に失敗しました。（ElevenLabs API制限等の可能性があります）\n詳細: ${errMsg}`
+            'internal',
+            `音声クローンの作成に失敗しました。\n詳細: ${errMsg}`
           );
         }
       }
@@ -130,6 +174,15 @@ export const createVoiceCloneAndAudio = functions
         console.log("TTS synthesis completed.");
       } catch (ttsError: any) {
         console.error("TTS Synthesis Error:", ttsError?.response?.data || ttsError);
+        
+        // 自前キーのエラーハンドリング（TTS時）
+        if (data.userApiKey && (ttsError?.response?.status === 401 || ttsError?.response?.status === 429)) {
+          throw new functions.https.HttpsError(
+            'resource-exhausted',
+            `自前のAPIキーの利用制限に達しました。ポイントをチャージしてアプリ標準の音声を利用してください。`
+          );
+        }
+
         throw new functions.https.HttpsError('internal', '音声の合成に失敗しました。');
       }
 
@@ -143,7 +196,6 @@ export const createVoiceCloneAndAudio = functions
           console.log("Temporary voice clone deleted successfully.");
         } catch (delError) {
           console.error("Failed to delete voice clone, manual cleanup may be needed:", delError);
-          // 削除処理の失敗は全体の失敗にせず警告のみに留め、アプリ側には音声を返す
         }
       }
 
@@ -163,7 +215,8 @@ export const createVoiceCloneAndAudio = functions
       // アプリ側で getDownloadURL を使えるように Storage内のパスを返す
       return { 
         storagePath: filename,
-        isFallback: !isCustomVoice && !!data.audioBase64 
+        isFallback: !isCustomVoice && !!data.audioBase64,
+        deductedPoints: data.userApiKey ? 0 : charCount
       };
 
     } catch (error: any) {

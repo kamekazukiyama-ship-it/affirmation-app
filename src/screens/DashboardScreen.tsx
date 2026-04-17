@@ -6,6 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useAppStore } from '../store/useAppStore';
 import { Visualization } from '../components/Visualization';
+import { getTranslation } from '../i18n/translations';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 
 // カレンダーの日本語化設定
 LocaleConfig.locales['ja'] = {
@@ -14,14 +16,21 @@ LocaleConfig.locales['ja'] = {
   dayNamesShort: ['日','月','火','水','木','金','土'],
   today: '今日'
 };
+LocaleConfig.locales['en'] = {
+  monthNames: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+  dayNames: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+  dayNamesShort: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+  today: 'Today'
+};
 LocaleConfig.defaultLocale = 'ja';
 
 const { width } = Dimensions.get('window');
 
 export function DashboardScreen() {
   const navigation = useNavigation<any>();
-  const { affirmations, currentStreak, listenedDays, isDarkMode, isVisualizationEnabled } = useAppStore();
+  const { affirmations, currentStreak, listenedDays, isDarkMode, isVisualizationEnabled, language, setLanguage, membershipType } = useAppStore();
   const [showCalendar, setShowCalendar] = useState(false);
+  LocaleConfig.defaultLocale = language;
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const bgColor = isDarkMode ? '#0A0A1A' : '#F8F9FA';
@@ -29,6 +38,7 @@ export function DashboardScreen() {
   const subTextColor = isDarkMode ? '#8E8E93' : '#6C6C70';
   const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.8)';
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
+  const activeColor = '#6B4EFF';
 
   const recordCount = affirmations.filter(a => !a.title.includes('AI生成')).length;
   const aiCount = affirmations.filter(a => a.title.includes('AI生成')).length;
@@ -41,12 +51,12 @@ export function DashboardScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={[styles.greeting, { color: subTextColor }]}>おはようございます</Text>
-            <Text style={[styles.title, { color: textColor }]}>AI×倍速×アファメーション</Text>
+            <Text style={[styles.greeting, { color: subTextColor }]}>{getTranslation(language, 'dash', 'greeting')}</Text>
+            <Text style={[styles.title, { color: textColor }]}>{getTranslation(language, 'dash', 'title')}</Text>
           </View>
           <View style={[styles.streakBadge, { backgroundColor: isDarkMode ? '#331B1B' : '#FFF3E0' }]}>
             <Flame color="#FF9500" size={20} />
-            <Text style={[styles.streakText, { color: isDarkMode ? '#FFB340' : '#E67E22' }]}>{currentStreak} 日</Text>
+            <Text style={[styles.streakText, { color: isDarkMode ? '#FFB340' : '#E67E22' }]}>{currentStreak} {getTranslation(language, 'dash', 'streak')}</Text>
           </View>
         </View>
 
@@ -54,7 +64,7 @@ export function DashboardScreen() {
         <View style={[styles.banner, { backgroundColor: isDarkMode ? 'rgba(107, 78, 255, 0.15)' : 'rgba(107, 78, 255, 0.05)' }]}>
           <Sparkles color="#6B4EFF" size={24} style={{ marginRight: 16 }} />
           <Text style={[styles.bannerText, { color: isDarkMode ? '#C7C2FF' : '#6B4EFF' }]}>
-            毎日の積み重ねが{'\n'}奇跡を生む
+            {getTranslation(language, 'dash', 'motivation')}
           </Text>
         </View>
 
@@ -66,8 +76,8 @@ export function DashboardScreen() {
         >
           <Play color="#FFFFFF" size={28} fill="#FFFFFF" style={{ marginRight: 16 }} />
           <View>
-            <Text style={styles.mainButtonTitle}>セッションを開始</Text>
-            <Text style={styles.mainButtonSub}>プレイヤーを開く</Text>
+            <Text style={styles.mainButtonTitle}>{getTranslation(language, 'dash', 'startBtn')}</Text>
+            <Text style={styles.mainButtonSub}>{getTranslation(language, 'dash', 'startSub')}</Text>
           </View>
         </TouchableOpacity>
 
@@ -81,7 +91,7 @@ export function DashboardScreen() {
               <Mic color="#FF3B30" size={24} />
             </View>
             <Text style={[styles.statValue, { color: '#FF3B30' }]}>{recordCount}</Text>
-            <Text style={[styles.statLabel, { color: subTextColor }]}>録音</Text>
+            <Text style={[styles.statLabel, { color: subTextColor }]}>{getTranslation(language, 'dash', 'statRecord')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.statCard, { backgroundColor: cardBg, borderColor }]}
@@ -91,7 +101,7 @@ export function DashboardScreen() {
               <Sparkles color="#007AFF" size={24} />
             </View>
             <Text style={[styles.statValue, { color: '#007AFF' }]}>{aiCount}</Text>
-            <Text style={[styles.statLabel, { color: subTextColor }]}>AI生成</Text>
+            <Text style={[styles.statLabel, { color: subTextColor }]}>{getTranslation(language, 'dash', 'statAi')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.statCard, { backgroundColor: cardBg, borderColor }]}
@@ -101,12 +111,22 @@ export function DashboardScreen() {
               <Flame color="#FF9500" size={24} />
             </View>
             <Text style={[styles.statValue, { color: '#FF9500' }]}>{currentStreak}</Text>
-            <Text style={[styles.statLabel, { color: subTextColor }]}>連続日数</Text>
+            <Text style={[styles.statLabel, { color: subTextColor }]}>{getTranslation(language, 'dash', 'statStreak')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
-        <Text style={[styles.sectionTitle, { color: textColor }]}>クイックアクション</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 0 }]}>{getTranslation(language, 'dash', 'quickTitle')}</Text>
+          <TouchableOpacity 
+            onPress={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
+            style={[styles.langToggle, { backgroundColor: cardBg, borderColor }]}
+          >
+            <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 13 }}>
+              {language === 'ja' ? '🇯🇵 JP ⇄ 🇺🇸 EN' : '🇺🇸 EN ⇄ 🇯🇵 JP'}
+            </Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.quickActionRow}>
           <TouchableOpacity 
             activeOpacity={0.7}
@@ -116,8 +136,8 @@ export function DashboardScreen() {
             <View style={[styles.iconCircle, { backgroundColor: isDarkMode ? 'rgba(255,59,48,0.1)' : '#FFEBEB', marginBottom: 12 }]}>
               <Mic color="#FF3B30" size={24} />
             </View>
-            <Text style={[styles.quickTitle, { color: textColor }]}>録音する</Text>
-            <Text style={[styles.quickSub, { color: subTextColor }]}>自分の声でアファメーション</Text>
+            <Text style={[styles.quickTitle, { color: textColor }]}>{getTranslation(language, 'dash', 'quickRec')}</Text>
+            <Text style={[styles.quickSub, { color: subTextColor }]}>{getTranslation(language, 'dash', 'quickRecSub')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -128,13 +148,13 @@ export function DashboardScreen() {
             <View style={[styles.iconCircle, { backgroundColor: isDarkMode ? 'rgba(0,122,255,0.1)' : '#E5F1FF', marginBottom: 12 }]}>
               <Sparkles color="#007AFF" size={24} />
             </View>
-            <Text style={[styles.quickTitle, { color: textColor }]}>AI生成</Text>
-            <Text style={[styles.quickSub, { color: subTextColor }]}>AIがアファメーションを作成</Text>
+            <Text style={[styles.quickTitle, { color: textColor }]}>{getTranslation(language, 'dash', 'quickGen')}</Text>
+            <Text style={[styles.quickSub, { color: subTextColor }]}>{getTranslation(language, 'dash', 'quickGenSub')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* How to use */}
-        <Text style={[styles.sectionTitle, { color: textColor }]}>使い方</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'dash', 'guideTitle')}</Text>
         
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
           {/* Step 1 & 2 */}
@@ -142,13 +162,13 @@ export function DashboardScreen() {
             <View style={[styles.guideCardSmall, { backgroundColor: cardBg, borderColor }]}>
               <View style={[styles.guideStepCircle, { backgroundColor: '#FF3B30' }]}><Text style={styles.guideStepText}>1</Text></View>
               <Mic color={textColor} size={20} style={{ marginHorizontal: 8 }} />
-              <Text style={[styles.guideTitleSmall, { color: textColor }]}>録音する</Text>
+              <Text style={[styles.guideTitleSmall, { color: textColor }]}>{getTranslation(language, 'dash', 'guideStep1')}</Text>
             </View>
             <View style={{ height: 8 }} />
             <View style={[styles.guideCardSmall, { backgroundColor: cardBg, borderColor }]}>
               <View style={[styles.guideStepCircle, { backgroundColor: '#007AFF' }]}><Text style={styles.guideStepText}>2</Text></View>
               <Sparkles color="#FFCC00" size={20} style={{ marginHorizontal: 8 }} />
-              <Text style={[styles.guideTitleSmall, { color: textColor }]}>AI生成</Text>
+              <Text style={[styles.guideTitleSmall, { color: textColor }]}>{getTranslation(language, 'dash', 'guideStep2')}</Text>
             </View>
           </View>
 
@@ -159,7 +179,7 @@ export function DashboardScreen() {
             <View style={[styles.guideCardLarge, { backgroundColor: cardBg, borderColor, height: 104 }]}>
               <View style={[styles.guideStepCircle, { backgroundColor: '#34C759' }]}><Text style={styles.guideStepText}>3</Text></View>
               <Zap color="#FF3B30" size={24} style={{ marginVertical: 8 }} />
-              <Text style={[styles.guideTitleSmall, { color: textColor, textAlign: 'center' }]}>倍速で再生！</Text>
+              <Text style={[styles.guideTitleSmall, { color: textColor, textAlign: 'center' }]}>{getTranslation(language, 'dash', 'guideStep3')}</Text>
             </View>
           </View>
         </View>
@@ -172,7 +192,7 @@ export function DashboardScreen() {
         <LinearGradient colors={themeColors as [string, string]} style={{ flex: 1 }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: borderColor }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: textColor }}>記録カレンダー</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: textColor }}>{getTranslation(language, 'dash', 'calTitle')}</Text>
               <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowCalendar(false)}>
                 <X color={textColor} size={28} />
               </TouchableOpacity>
@@ -181,7 +201,7 @@ export function DashboardScreen() {
               <View style={{ alignItems: 'center', marginBottom: 24 }}>
                 <Flame color="#FF9500" size={48} />
                 <Text style={{ color: textColor, fontSize: 24, fontWeight: 'bold', marginTop: 12 }}>
-                  現在 {currentStreak || 0} 日連続！
+                  {getTranslation(language, 'dash', 'currentStreak').replace('{0}', String(currentStreak || 0))}
                 </Text>
               </View>
 
@@ -218,6 +238,17 @@ export function DashboardScreen() {
         </LinearGradient>
       </Modal>
 
+      {membershipType !== 'premium' && (
+        <View style={styles.adContainer}>
+          <BannerAd
+            unitId="ca-app-pub-6343618071277983/1442484920"
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: true,
+            }}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -388,5 +419,18 @@ const styles = StyleSheet.create({
   guideDesc: {
     fontSize: 12,
     lineHeight: 18,
+  },
+  langToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  adContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    backgroundColor: 'transparent',
+    width: '100%',
   }
 });

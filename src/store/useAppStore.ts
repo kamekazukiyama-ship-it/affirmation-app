@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export interface Affirmation {
-  id: string;
+export type Language = 'ja' | 'en';
+
+export interface Affirmation {  id: string;
   uri: string;
   cloudUrl?: string;
   title: string;
@@ -33,6 +34,9 @@ export interface CustomBgm {
 }
 
 interface AppState {
+  language: Language;
+  hasSetLanguage: boolean;
+  setLanguage: (lang: Language) => void;
   affirmations: Affirmation[];
   playlists: Playlist[];
   savedTexts: SavedText[];
@@ -72,11 +76,22 @@ interface AppState {
   customBgms: CustomBgm[];
   addCustomBgm: (bgm: CustomBgm) => void;
   removeCustomBgm: (id: string) => void;
+
+  // 収益化・ポイント関連
+  userId: string | null;
+  setUserId: (id: string | null) => void;
+  pointBalance: number;
+  setPointBalance: (balance: number) => void;
+  membershipType: 'free' | 'premium';
+  setMembershipType: (type: 'free' | 'premium') => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      language: 'ja',
+      hasSetLanguage: false,
+      setLanguage: (lang) => set({ language: lang, hasSetLanguage: true }),
       affirmations: [],
       playlists: [],
       savedTexts: [],
@@ -102,6 +117,13 @@ export const useAppStore = create<AppState>()(
       customBgms: [],
       addCustomBgm: (bgm) => set((state) => ({ customBgms: [...state.customBgms, bgm] })),
       removeCustomBgm: (id) => set((state) => ({ customBgms: state.customBgms.filter(b => b.id !== id) })),
+
+      userId: null,
+      setUserId: (id) => set({ userId: id }),
+      pointBalance: 0,
+      setPointBalance: (balance) => set({ pointBalance: balance }),
+      membershipType: 'free',
+      setMembershipType: (type) => set({ membershipType: type }),
 
       markListenedToday: () => set((state) => {
         const today = new Date();

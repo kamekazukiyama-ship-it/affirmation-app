@@ -9,6 +9,7 @@ import { useAppStore } from '../store/useAppStore';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateLongAffirmation, SubjectType } from '../utils/affirmationGenerator';
+import { getTranslation } from '../i18n/translations';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -54,11 +55,22 @@ export function GenerateScreen({ route, navigation }: any) {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('female');
-  const { affirmations, addAffirmation, isDarkMode, savedTexts, addSavedText, elevenLabsApiKey, setElevenLabsApiKey } = useAppStore();
-
   const [playingPreviewId, setPlayingPreviewId] = useState<string | null>(null);
   const [previewSound, setPreviewSound] = useState<Audio.Sound | null>(null);
   const [isAIModalVisible, setIsAIModalVisible] = useState(false);
+  
+  const { 
+    affirmations, 
+    addAffirmation, 
+    isDarkMode, 
+    savedTexts, 
+    addSavedText, 
+    elevenLabsApiKey, 
+    setElevenLabsApiKey,
+    pointBalance,
+    membershipType,
+    language
+  } = useAppStore();
 
   useEffect(() => {
     return () => {
@@ -137,7 +149,9 @@ export function GenerateScreen({ route, navigation }: any) {
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
 
-  const presets = ['自己肯定感', '感謝', '目標達成', '癒やし', 'モチベーション', '集中力', 'リラックス', 'ポジティブ', '成功', '運', '人間関係', '行動力'];
+  const presets = language === 'en'
+    ? ['Self-Esteem', 'Gratitude', 'Goals', 'Healing', 'Motivation', 'Focus', 'Relax', 'Positive', 'Success', 'Luck', 'Relationships', 'Action']
+    : ['自己肯定感', '感謝', '目標達成', '癒やし', 'モチベーション', '集中力', 'リラックス', 'ポジティブ', '成功', '運', '人間関係', '行動力'];
 
   // 録音タイマー
   useEffect(() => {
@@ -216,8 +230,8 @@ export function GenerateScreen({ route, navigation }: any) {
     try {
       const prompt = customTheme ? `${customTheme}` : targetTheme;
       
-      // ローカルジェネレーターで即時テキスト作成（API通信不要・完全無料）
-      const text = generateLongAffirmation(prompt, subjectType, customName);
+      // ローカルジェネレーターで即時テキスト作成
+      const text = generateLongAffirmation(prompt, subjectType, customName, language);
       setGeneratedText(text.trim());
     } catch (error: any) {
       console.error('Generaton Error:', error);
@@ -230,6 +244,26 @@ export function GenerateScreen({ route, navigation }: any) {
   const startGenerateAudioProcess = async () => {
     setIsAIModalVisible(false);
     if (!generatedText) return;
+
+    // --- ポイント消費の事前チェック (自前APIキーがない場合) ---
+    const charCount = generatedText.length;
+    const maxChars = language === 'en' ? 300 : 200;
+    
+    if (!elevenLabsApiKey) {
+      if (pointBalance < charCount) {
+        Alert.alert(
+          getTranslation(language, 'settings', 'pointBalanceShortage') || (language === 'en' ? 'Insufficient Points' : 'ポイント不足'),
+          language === 'en' 
+            ? `You need ${charCount - pointBalance} more points for this text (${charCount} chars).\n\nPlease charge on the Premium screen.`
+            : `この文章（${charCount}文字）を生成するには、あと ${charCount - pointBalance} ポイント足りません。\n\nプレミアム画面でチャージしてください。`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: 'プレミアム画面へ', onPress: () => navigation.navigate('Premium') }
+          ]
+        );
+        return;
+      }
+    }
     
     let base64Audio: string | undefined = undefined;
 
@@ -372,6 +406,12 @@ export function GenerateScreen({ route, navigation }: any) {
               <Text style={{ color: textColor, fontWeight: 'bold', width: 80, fontSize: 13 }}>送信先:</Text>
               <Text style={{ color: subTextColor, flex: 1, fontSize: 13 }}>OpenAI, ElevenLabs</Text>
             </View>
+            {!elevenLabsApiKey && (
+              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                <Text style={{ color: '#FF9500', fontWeight: 'bold', width: 80, fontSize: 13 }}>消費ポイント:</Text>
+                <Text style={{ color: '#FF9500', flex: 1, fontSize: 13, fontWeight: 'bold' }}>{generatedText.length} pt</Text>
+              </View>
+            )}
             <View style={{ flexDirection: 'row' }}>
               <Text style={{ color: textColor, fontWeight: 'bold', width: 80, fontSize: 13 }}>利用目的:</Text>
               <Text style={{ color: subTextColor, flex: 1, fontSize: 13 }}>アファメーション音声の合成のみに使用され、AIの学習には利用されません。</Text>
@@ -410,33 +450,52 @@ export function GenerateScreen({ route, navigation }: any) {
     <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
       {renderAIConfirmationModal()}
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: textColor }]}>AIアファメーション作成</Text>
-        <Text style={[styles.subtitle, { color: subTextColor }]}>AIが前向きな言葉を作成し、あなたの声で読み上げます</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={[styles.title, { color: textColor }]}>{getTranslation(language, 'gen', 'title')}</Text>
+            <Text style={[styles.subtitle, { color: subTextColor }]}>{getTranslation(language, 'gen', 'subtitle')}</Text>
+          </View>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Premium')}
+            style={{ 
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', 
+              paddingHorizontal: 16, 
+              paddingVertical: 8, 
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: inputBorder,
+              alignItems: 'center'
+            }}
+          >
+            <Text style={{ color: subTextColor, fontSize: 10, marginBottom: 2 }}>{getTranslation(language, 'gen', 'pointsLabel')}</Text>
+            <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16 }}>{pointBalance} <Text style={{ fontSize: 10 }}>pt</Text></Text>
+          </TouchableOpacity>
+        </View>
 
       {/* 1. テキスト作成セクション */}
       <View style={[styles.sectionContainer, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.label, { color: textColor }]}>1. 読み上げる文章を作成する</Text>
+        <Text style={[styles.label, { color: textColor }]}>{getTranslation(language, 'gen', 'section1')}</Text>
         
         {/* ステップ1 */}
         <View style={{ marginBottom: 20, marginTop: 8 }}>
           <Text style={[styles.infoText, { color: subTextColor, marginBottom: 8, fontWeight: 'bold' }]}>
-            ① まずは主語のパターンを選びます
+            {getTranslation(language, 'gen', 'step1')}
           </Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity onPress={() => setSubjectType('I')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'I' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'I' ? activeColor : borderColor }]}>
-              <Text style={{ color: subjectType === 'I' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'I' ? 'bold' : 'normal' }}>私</Text>
+              <Text style={{ color: subjectType === 'I' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'I' ? 'bold' : 'normal' }}>{getTranslation(language, 'gen', 'subjI')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSubjectType('YOU')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'YOU' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'YOU' ? activeColor : borderColor }]}>
-              <Text style={{ color: subjectType === 'YOU' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'YOU' ? 'bold' : 'normal' }}>あなた</Text>
+              <Text style={{ color: subjectType === 'YOU' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'YOU' ? 'bold' : 'normal' }}>{getTranslation(language, 'gen', 'subjYou')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSubjectType('NAME')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'NAME' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'NAME' ? activeColor : borderColor }]}>
-              <Text style={{ color: subjectType === 'NAME' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'NAME' ? 'bold' : 'normal' }}>名前</Text>
+              <Text style={{ color: subjectType === 'NAME' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'NAME' ? 'bold' : 'normal' }}>{getTranslation(language, 'gen', 'subjName')}</Text>
             </TouchableOpacity>
           </View>
           {subjectType === 'NAME' && (
             <TextInput
               style={[styles.textInput, { backgroundColor: inputBg, color: textColor, borderColor: inputBorder, marginTop: 8 }]}
-              placeholder="呼ばれたい名前を入力 (例: カズキ、カー君、かずぽん etc)"
+              placeholder={getTranslation(language, 'gen', 'namePlaceholder')}
               placeholderTextColor={subTextColor}
               value={customName}
               onChangeText={setCustomName}
@@ -447,7 +506,7 @@ export function GenerateScreen({ route, navigation }: any) {
         {/* ステップ2 */}
         <View style={{ marginBottom: 20 }}>
           <Text style={[styles.infoText, { color: subTextColor, marginBottom: 8, fontWeight: 'bold' }]}>
-            ② 続いて項目を選びます
+            {getTranslation(language, 'gen', 'step2')}
           </Text>
           <View style={styles.presetContainer}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 }}>
@@ -467,18 +526,18 @@ export function GenerateScreen({ route, navigation }: any) {
         </View>
 
         {/* ステップ3 */}
-        {generatedText ? (
-          <View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={[styles.infoText, { color: subTextColor, fontWeight: 'bold' }]}>③ 最後に、自由に編集します</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {/* 文字数カウンター */}
-                <View style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: inputBorder }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: generatedText.length >= 200 ? '#FF3B30' : subTextColor }}>
-                    {generatedText.length} / 200
-                  </Text>
-                </View>
+        <View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={[styles.infoText, { color: subTextColor, fontWeight: 'bold' }]}>{getTranslation(language, 'gen', 'step3')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* 文字数カウンター */}
+              <View style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: inputBorder }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: (generatedText?.length || 0) >= (language === 'en' ? 300 : 200) ? '#FF3B30' : subTextColor }}>
+                  {generatedText?.length || 0} / {language === 'en' ? 300 : 200}
+                </Text>
+              </View>
 
+              {generatedText ? (
                 <TouchableOpacity 
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(0,122,255,0.1)' }}
                   onPress={() => {
@@ -498,25 +557,27 @@ export function GenerateScreen({ route, navigation }: any) {
                 >
                   <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 13 }}>⭐ 保存する</Text>
                 </TouchableOpacity>
-              </View>
+              ) : null}
             </View>
-            <TextInput
-              style={[styles.resultInput, { backgroundColor: inputBg, color: textColor, borderColor: inputBorder }]}
-              value={generatedText}
-              onChangeText={setGeneratedText}
-              multiline
-              autoCorrect={false}
-              spellCheck={false}
-            />
           </View>
-        ) : null}
+          <TextInput
+            style={[styles.resultInput, { backgroundColor: inputBg, color: textColor, borderColor: inputBorder, minHeight: 120 }]}
+            value={generatedText}
+            onChangeText={setGeneratedText}
+            placeholder={getTranslation(language, 'gen', 'textPlaceholder')}
+            placeholderTextColor={subTextColor}
+            multiline
+            autoCorrect={false}
+            spellCheck={false}
+          />
+        </View>
       </View>
 
       {/* 2. 音声選択セクション */}
       <View style={[styles.sectionContainer, { backgroundColor: cardBg, borderColor }]}>
-        <Text style={[styles.label, { color: textColor }]}>2. ナレーション音声を選ぶ</Text>
+        <Text style={[styles.label, { color: textColor }]}>{getTranslation(language, 'gen', 'section2')}</Text>
         <Text style={[styles.infoText, { color: subTextColor, marginBottom: 16 }]}>
-          プロにお任せするか、あなた自身の声（クローン）を使うか選べます。
+          {getTranslation(language, 'gen', 'subtitle')}
         </Text>
         
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
@@ -524,9 +585,9 @@ export function GenerateScreen({ route, navigation }: any) {
             onPress={() => setVoiceType('system')}
             style={[{ flex: 1, padding: 16, borderRadius: 16, borderWidth: 2, alignItems: 'center' }, voiceType === 'system' ? { borderColor: activeColor, backgroundColor: isDarkMode ? 'rgba(0, 242, 254, 0.1)' : 'rgba(0, 122, 255, 0.05)' } : { borderColor: inputBorder }]}
           >
-            <Text style={{ fontSize: 24, marginBottom: 8 }}>⭐️</Text>
-            <Text style={{ color: textColor, fontWeight: 'bold', fontSize: 14 }}>プロAIナレーター</Text>
-            <Text style={{ color: subTextColor, fontSize: 11, marginTop: 4, textAlign: 'center' }}>ハイクオリティな{'\n'}標準音声</Text>
+            <Text style={{ fontSize: 24, marginBottom: 8 }}>⭐</Text>
+            <Text style={{ color: textColor, fontWeight: 'bold', fontSize: 14 }}>{getTranslation(language, 'gen', 'voiceSys')}</Text>
+            <Text style={{ color: subTextColor, fontSize: 11, marginTop: 4, textAlign: 'center' }}>{getTranslation(language, 'gen', 'voiceSysSub')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -534,8 +595,8 @@ export function GenerateScreen({ route, navigation }: any) {
             style={[{ flex: 1, padding: 16, borderRadius: 16, borderWidth: 2, alignItems: 'center' }, voiceType === 'custom' ? { borderColor: activeColor, backgroundColor: isDarkMode ? 'rgba(0, 242, 254, 0.1)' : 'rgba(0, 122, 255, 0.05)' } : { borderColor: inputBorder }]}
           >
             <Text style={{ fontSize: 24, marginBottom: 8 }}>🎙️</Text>
-            <Text style={{ color: textColor, fontWeight: 'bold', fontSize: 14 }}>あなたの声で生成</Text>
-            <Text style={{ color: subTextColor, fontSize: 11, marginTop: 4, textAlign: 'center' }}>自分の声の{'\n'}AIクローン</Text>
+            <Text style={{ color: textColor, fontWeight: 'bold', fontSize: 14 }}>{getTranslation(language, 'gen', 'voiceClone')}</Text>
+            <Text style={{ color: subTextColor, fontSize: 11, marginTop: 4, textAlign: 'center' }}>{getTranslation(language, 'gen', 'voiceCloneSub')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -557,7 +618,7 @@ export function GenerateScreen({ route, navigation }: any) {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ color: subTextColor, fontSize: 12, marginBottom: 4 }}>現在の音声:</Text>
+                <Text style={{ color: subTextColor, fontSize: 12, marginBottom: 4 }}>{getTranslation(language, 'gen', 'voiceCurrent')}</Text>
                 <Text style={{ color: textColor, fontSize: 16, fontWeight: 'bold' }}>
                   {AI_VOICES.find(v => v.id === systemVoiceId)?.icon} {AI_VOICES.find(v => v.id === systemVoiceId)?.name}
                 </Text>
@@ -576,7 +637,7 @@ export function GenerateScreen({ route, navigation }: any) {
                     }}
                     style={[{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1 }, selectedGender === 'female' ? { backgroundColor: isDarkMode ? 'rgba(255, 105, 180, 0.15)' : 'rgba(255, 105, 180, 0.1)', borderColor: '#FF69B4' } : { backgroundColor: 'transparent', borderColor: borderColor }]}
                   >
-                    <Text style={{ color: selectedGender === 'female' ? (isDarkMode ? '#FF69B4' : '#E0338F') : textColor, fontWeight: 'bold', fontSize: 13 }}>👱‍♀️ 女性</Text>
+                    <Text style={{ color: selectedGender === 'female' ? (isDarkMode ? '#FF69B4' : '#E0338F') : textColor, fontWeight: 'bold', fontSize: 13 }}>👱‍♀️ {getTranslation(language, 'gen', 'genderFemale')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     onPress={() => {
@@ -585,7 +646,7 @@ export function GenerateScreen({ route, navigation }: any) {
                     }}
                     style={[{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1 }, selectedGender === 'male' ? { backgroundColor: isDarkMode ? 'rgba(0, 191, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)', borderColor: isDarkMode ? '#00BFFF' : '#007AFF' } : { backgroundColor: 'transparent', borderColor: borderColor }]}
                   >
-                    <Text style={{ color: selectedGender === 'male' ? (isDarkMode ? '#00BFFF' : '#007AFF') : textColor, fontWeight: 'bold', fontSize: 13 }}>👱‍♂️ 男性</Text>
+                    <Text style={{ color: selectedGender === 'male' ? (isDarkMode ? '#00BFFF' : '#007AFF') : textColor, fontWeight: 'bold', fontSize: 13 }}>👱‍♂️ {getTranslation(language, 'gen', 'genderMale')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -638,9 +699,9 @@ export function GenerateScreen({ route, navigation }: any) {
                 }}
               >
                 <Text style={{ flex: 1, color: textColor, fontSize: 14, fontWeight: 'bold', lineHeight: 22 }}>
-                  ✨ プレミアム機能 ✨{'\n'}
-                  自分の声でAIアファメーションを{'\n'}
-                  作成したい方は<Text style={{ color: '#FF3B30', textDecorationLine: 'underline' }}>コチラ</Text> ☞
+                  {getTranslation(language, 'gen', 'advancedTitle')}{'\n'}
+                  {getTranslation(language, 'gen', 'advancedSub1')}{'\n'}
+                  {getTranslation(language, 'gen', 'advancedSub2')}<Text style={{ color: '#FF3B30', textDecorationLine: 'underline' }}>{getTranslation(language, 'gen', 'advancedClick')}</Text> ☞
                 </Text>
                 {showAdvanced ? <ChevronUp color={subTextColor} size={24} /> : <ChevronDown color={subTextColor} size={24} />}
               </TouchableOpacity>
@@ -648,13 +709,12 @@ export function GenerateScreen({ route, navigation }: any) {
               {showAdvanced && (
                 <View style={{ backgroundColor: cardBg, marginTop: 8, padding: 16, borderRadius: 12, borderWidth: 1, borderColor }}>
                   <Text style={{ color: textColor, fontSize: 13, lineHeight: 20, marginBottom: 12 }}>
-                    ElevenLabsの有料プラン（Starterプラン: 月額約750円/$5）に登録してAPIキーを取得すると、あなた自身の声をAI化してアファメーションを作成できるようになります！🎉{'\n\n'}
-                    ※生成した音声は無期限でアプリ内に保存して何度も聴けるため、生成したい月だけ登録し、その後解約することも可能です。
+                    {getTranslation(language, 'gen', 'advancedDesc')}
                   </Text>
                   
                   <TextInput
                     style={{ backgroundColor: inputBg, color: textColor, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: inputBorder, marginBottom: 16 }}
-                    placeholder="ここにAPIキーを貼り付け (sk_...)"
+                    placeholder={getTranslation(language, 'gen', 'apiKeyPlaceholder')}
                     placeholderTextColor={subTextColor}
                     value={elevenLabsApiKey || ''}
                     onChangeText={setElevenLabsApiKey}
@@ -663,46 +723,41 @@ export function GenerateScreen({ route, navigation }: any) {
                     autoCorrect={false}
                   />
                   <Text style={{ color: subTextColor, fontSize: 11, marginBottom: 12, lineHeight: 16 }}>
-                    ※入力いただいたAPIキーは端末内に暗号化して保存され、開発者を含む外部に送信されることはありません。ElevenLabsの音声合成機能を利用するためにのみ、お使いの端末から直接使用されます。
+                    {getTranslation(language, 'gen', 'apiKeyNotice')}
                   </Text>
                   {elevenLabsApiKey ? (
-                    <Text style={{ color: '#34C759', fontSize: 13, marginBottom: 16, fontWeight: 'bold' }}>✅ APIキー設定済み（フル機能解放中！）</Text>
+                    <Text style={{ color: '#34C759', fontSize: 13, marginBottom: 16, fontWeight: 'bold' }}>✅ {getTranslation(language, 'gen', 'apiKeyConfigured')}</Text>
                   ) : null}
 
-                  <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 14, marginBottom: 12 }}>👇 有料APIキーの取得方法（3ステップ）</Text>
+                  <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 14, marginBottom: 12 }}>{getTranslation(language, 'gen', 'apiMethodTitle')}</Text>
                   
                   <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 4 }}>1️⃣ アカウント作成とStarterプランへの登録</Text>
+                    <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 4 }}>{getTranslation(language, 'gen', 'apiStep1Title')}</Text>
                     <Text style={{ color: subTextColor, fontSize: 13, lineHeight: 18 }}>
-                      ブラウザで「ElevenLabs」と検索するか、
-                      <Text 
-                        style={{ color: activeColor, textDecorationLine: 'underline' }} 
-                        onPress={() => Linking.openURL('https://elevenlabs.io/')}
-                      >
-                        elevenlabs.io
-                      </Text>
-                      にアクセスし、アカウントを作成後、「Starter」プラン（$5/月）以上のプランに登録します。
+                      {getTranslation(language, 'gen', 'apiStep1Desc')}
                     </Text>
                   </View>
 
                   <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 4 }}>2️⃣ プロフィール画面からキーを作成</Text>
+                    <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 4 }}>{getTranslation(language, 'gen', 'apiStep2Title')}</Text>
                     <Text style={{ color: subTextColor, fontSize: 13, lineHeight: 20, marginBottom: 8 }}>
-                      ログイン後、画面のどこかにあるご自身のアイコンをタップして「使用状況分析（Usage analytics）」を選びます。{'\n'}
-                      その後、ページ上部の「API Keys」という文字をタップし、「＋Create Key」ボタンを押して好きな名前を入力します。
+                      {getTranslation(language, 'gen', 'apiStep2Desc')}
                     </Text>
                     <Text style={{ color: subTextColor, fontSize: 13, lineHeight: 20, marginBottom: 8 }}>
-                      <Text style={{ fontWeight: 'bold', color: '#FF3B30' }}>必ず「Restrict Key」のスイッチをオフ（灰色）にしてから</Text>作成ボタンを押してください。
+                      <Text style={{ fontWeight: 'bold', color: '#FF3B30' }}>{getTranslation(language, 'gen', 'apiStep2Warn')}</Text>
                     </Text>
                     <Text style={{ color: subTextColor, fontSize: 12, lineHeight: 18, padding: 8, backgroundColor: isDarkMode ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.05)', borderRadius: 8, overflow: 'hidden' }}>
-                      ※オフにすると赤い警告文（キー流出に注意という内容）が出ますが、このアプリ内にのみ保存され外部に共有されることはないため安心してください！そのまま作成して大丈夫です。
+                      {getTranslation(language, 'gen', 'apiStep2Safety')}
                     </Text>
                   </View>
 
                   <View style={{ marginBottom: 4 }}>
-                    <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 4 }}>3️⃣ キーをコピーしてアプリに貼る</Text>
+                    <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 4 }}>{getTranslation(language, 'gen', 'apiStep3Title')}</Text>
                     <Text style={{ color: subTextColor, fontSize: 13, lineHeight: 18 }}>
-                      作成された「API Key」というパスワードのような文字列を全選択してコピーし、すぐ上の入力欄に貼り付ければ完了です！
+                      {getTranslation(language, 'gen', 'apiStep3Desc')}
+                    </Text>
+                    <Text style={{ color: "#FF3B30", fontSize: 11, fontWeight: "bold", marginTop: 8 }}>
+                      {getTranslation(language, 'gen', 'apiStep3Note')}
                     </Text>
                   </View>
                 </View>
@@ -711,10 +766,10 @@ export function GenerateScreen({ route, navigation }: any) {
 
             {/* 2. 録音エリアを下に（APIキー入力までロックする） */}
             <View style={{ opacity: elevenLabsApiKey ? 1 : 0.4 }} pointerEvents={elevenLabsApiKey ? 'auto' : 'none'}>
-              <Text style={[styles.label, { color: textColor, fontSize: 14, marginBottom: 8 }]}>自分の声を10秒ほど録音する</Text>
+              <Text style={[styles.label, { color: textColor, fontSize: 14, marginBottom: 8 }]}>{getTranslation(language, 'gen', 'recordTitle')}</Text>
               {!elevenLabsApiKey && (
                  <Text style={{ color: '#FF3B30', fontSize: 12, marginBottom: 8, fontWeight: 'bold' }}>
-                   ※上の「✨プレミアム機能✨」からAPIキーを設定すると録音機能が使えます
+                   {getTranslation(language, 'gen', 'recordLockNotice')}
                  </Text>
               )}
               <View style={[styles.recorderRow, { backgroundColor: isDarkMode ? '#1A1A2E' : '#F0F8FF', padding: 16, borderRadius: 12 }]}>
@@ -726,10 +781,10 @@ export function GenerateScreen({ route, navigation }: any) {
                 </TouchableOpacity>
                 <View style={{ marginLeft: 16, flex: 1 }}>
                    <Text style={[styles.recorderTitle, { color: textColor, fontSize: 15 }]}>
-                     {isRecording ? '録音中...' : '録音ボタンをタップ'}
+                     {isRecording ? getTranslation(language, 'gen', 'recordingLabel') : getTranslation(language, 'gen', 'recordBtnLabel')}
                    </Text>
                    <Text style={[styles.recorderDesc, { color: isRecording ? '#FF3B30' : subTextColor, fontSize: 12 }]}>
-                     {isRecording ? formatTime(duration) : '話す内容は自由（自己紹介など）です'}
+                     {isRecording ? getTranslation(language, 'gen', 'recordingTime').replace('{0}', formatTime(duration)) : getTranslation(language, 'gen', 'recordDesc')}
                    </Text>
                 </View>
               </View>
@@ -740,11 +795,30 @@ export function GenerateScreen({ route, navigation }: any) {
 
       {/* 3. 音声合成セクション */}
       <View style={[styles.sectionContainer, { backgroundColor: cardBg, borderColor, alignItems: 'center' }, !generatedText && { opacity: 0.5 }]}>
-        <Text style={[styles.label, { color: textColor, marginBottom: 8 }]}>3. 前向きなフレーズを音声にする</Text>
+        <Text style={[styles.label, { color: textColor, marginBottom: 8 }]}>{getTranslation(language, 'gen', 'section3')}</Text>
         
         <Text style={{ color: subTextColor, fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
-          ※「音声を合成して保存」をタップすると、データ送信への同意画面が表示されます。
+          {getTranslation(language, 'gen', 'synthesizeNotice')}
         </Text>
+
+        {!elevenLabsApiKey && generatedText.length > 0 && (
+          <View style={{ 
+            backgroundColor: pointBalance >= generatedText.length ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)', 
+            paddingHorizontal: 12, 
+            paddingVertical: 6, 
+            borderRadius: 8, 
+            marginBottom: 16,
+            flexDirection: 'row',
+            alignItems: 'center'
+          }}>
+            <Text style={{ color: pointBalance >= generatedText.length ? (isDarkMode ? '#34C759' : '#248A3D') : '#FF3B30', fontSize: 13, fontWeight: 'bold' }}>
+              {getTranslation(language, 'gen', 'consumeLabel')}{generatedText.length} pt
+            </Text>
+            <Text style={{ color: subTextColor, fontSize: 12, marginLeft: 8 }}>
+              (現在：{pointBalance} pt)
+            </Text>
+          </View>
+        )}
 
         {isGeneratingAudio ? (
           <ActivityIndicator color="#00F2FE" size="large" />
@@ -752,14 +826,16 @@ export function GenerateScreen({ route, navigation }: any) {
           <TouchableOpacity 
             style={[
               styles.generateButton, 
-              { backgroundColor: '#34C759', width: '100%' }, 
+              { backgroundColor: pointBalance < generatedText.length && !elevenLabsApiKey ? subTextColor : '#34C759', width: '100%' }, 
               !generatedText && styles.disabledButton
             ]} 
             onPress={() => setIsAIModalVisible(true)}
             disabled={!generatedText || isGeneratingAudio}
           >
             <Mic color="#FFFFFF" size={20} style={{ marginRight: 8 }} />
-            <Text style={styles.buttonText}>音声を合成して保存</Text>
+            <Text style={styles.buttonText}>
+              {pointBalance < generatedText.length && !elevenLabsApiKey ? getTranslation(language, 'gen', 'btnNoPoints') : getTranslation(language, 'gen', 'btnSynthesize')}
+            </Text>
           </TouchableOpacity>
         )}
       </View>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, Modal, SafeAreaView, Image, ActivityIndicator } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import Slider from '@react-native-community/slider';
 import { useAppStore, Affirmation } from '../store/useAppStore';
 import { Play, Pause, Square, Trash2, Heart, Settings2, SkipBack, SkipForward, Repeat, Repeat1, Mic, Sparkles, Volume2, Music, Edit2, Flame, X, Share2, Plus } from 'lucide-react-native';
@@ -11,15 +12,40 @@ import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Visualization } from '../components/Visualization';
+import { getTranslation } from '../i18n/translations';
+import { useNavigation } from '@react-navigation/native';
 
-// カレンダーの日本語化設定
+// カレンダーの設定
 LocaleConfig.locales['ja'] = {
   monthNames: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
   dayNames: ['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'],
   dayNamesShort: ['日','月','火','水','木','金','土'],
   today: '今日'
 };
-LocaleConfig.defaultLocale = 'ja';
+LocaleConfig.locales['en'] = {
+  monthNames: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+  dayNames: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+  dayNamesShort: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+  today: 'Today'
+};
+
+// --- BGMリストの定義（コンポーネントの外に置いて安全を確保） ---
+const getBgmList = (lang: string) => [
+  { id: 'none', label: lang === 'en' ? 'None' : 'なし' },
+  { id: 'focus', label: lang === 'en' ? 'Piano (Canon) *' : 'ピアノ(カノン) ★', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3', tag: lang === 'en' ? 'Classic' : '定番' },
+  { id: 'moonlight', label: lang === 'en' ? 'Piano (Moonlight) *' : 'ピアノ(月光) ★', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3', tag: lang === 'en' ? 'Classic' : '定番' },
+  { id: 'bgm1', label: 'BGM1', source: require('../../assets/bgm/bgm_1.mp4'), tag: lang === 'en' ? 'Classic' : '定番' },
+  { id: 'bgm2', label: 'BGM2', source: require('../../assets/bgm/bgm_2.mp4'), tag: lang === 'en' ? 'Classic' : '定番' },
+  { id: '396hz', label: lang === 'en' ? 'Release (396Hz)' : '解放 (396Hz)', source: require('../../assets/bgm/bgm_396hz.mp3'), tag: lang === 'en' ? 'Solfeggio' : 'ソルフェ' },
+  { id: '432hz', label: lang === 'en' ? 'Universe (432Hz)' : '宇宙 (432Hz)', source: require('../../assets/bgm/bgm_432hz.mp3'), tag: lang === 'en' ? 'Solfeggio' : 'ソルフェ' },
+  { id: '528hz', label: lang === 'en' ? 'Miracle (528Hz)' : '奇跡 (528Hz)', source: require('../../assets/bgm/bgm_528hz.mp3'), tag: lang === 'en' ? 'Solfeggio' : 'ソルフェ' },
+  { id: '852hz', label: lang === 'en' ? 'Awakening (852Hz)' : '覚醒 (852Hz)', source: require('../../assets/bgm/bgm_852hz.mp3'), tag: lang === 'en' ? 'Solfeggio' : 'ソルフェ' },
+  { id: '963hz', label: lang === 'en' ? 'Universe Mind (963Hz)' : '宇宙意識 (963Hz)', source: require('../../assets/bgm/bgm_963hz.mp3'), tag: lang === 'en' ? 'Solfeggio' : 'ソルフェ' },
+  { id: 'river_local', label: lang === 'en' ? 'River' : '川のせせらぎ', source: require('../../assets/bgm/bgm_river_local.mp3'), tag: lang === 'en' ? 'Nature' : '自然' },
+  { id: 'fire_local', label: lang === 'en' ? 'Campfire' : '焚き火', source: require('../../assets/bgm/bgm_fire_local.mp3'), tag: lang === 'en' ? 'Nature' : '自然' },
+  { id: 'birds_local', label: lang === 'en' ? 'Bird Songs' : '鳥のさえずり', source: require('../../assets/bgm/bgm_birds_local.mp3'), tag: lang === 'en' ? 'Nature' : '自然' },
+  { id: 'noise_local', label: lang === 'en' ? 'White Noise' : 'ホワイトノイズ', source: require('../../assets/bgm/bgm_noise.mp3'), tag: lang === 'en' ? 'Nature' : '自然' },
+];
 
 // --- 時間フォーマット関数 ---
 const formatTime = (millis: number) => {
@@ -30,7 +56,6 @@ const formatTime = (millis: number) => {
 };
 
 // --- プログレス表示コンポーネント（独立したレンダリング領域） ---
-// 再生時間のたびにHomeScreen全体が再描画され、ボタンが重くなる現象を防ぐための工夫です
 const AudioProgress = ({ 
   sound, 
   onFinish, 
@@ -125,9 +150,190 @@ const AffirmationListItem = React.memo(({
          prev.textColor === next.textColor;
 });
 
+// --- ヘッダーコンポーネント（独立させて再マウントを防止） ---
+const PlayerHeader = React.memo(({ 
+  currentStreak, setShowCalendar, MemoizedAffirmationArea, 
+  sound, setPlayNextSignal, subTextColor, activeColor,
+  loopMode, toggleLooping, isPlaying, isPaused, handleMainPlayToggle,
+  speed, isPremium, showPremiumLimitAlert, setSpeed,
+  textColor, cardBg, borderColor, inactiveColor,
+  showSettings, setShowSettings, MemoizedBgmRow, 
+  voiceVolume, adjustVol, setVoiceVolume, bgmType, handleBgmPlayToggle, 
+  isBgmLoading, bgmIsPlaying, handleBgmStop, bgmVolume, setBgmVolume,
+  MemoizedTabsRow, activePlaylistId, playlists, language
+}: any) => {
+  return (
+    <View style={{ paddingBottom: 16 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 12 }}>
+        <TouchableOpacity 
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,149,0,0.15)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,149,0,0.3)' }}
+          onPress={() => setShowCalendar(true)}
+        >
+          <Flame color="#FF9500" size={20} style={{ marginRight: 6 }} />
+          <Text style={{ color: '#FF9500', fontWeight: 'bold', fontSize: 14 }}>
+            {getTranslation(language, 'dash', 'currentStreak').replace('{0}', String(currentStreak || 0))}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      {MemoizedAffirmationArea}
+      
+      <View style={styles.playerContainer}>
+        <AudioProgress 
+          sound={sound} 
+          onFinish={() => setPlayNextSignal((s: any) => s + 1)}
+          subTextColor={subTextColor}
+          activeColor={activeColor}
+        />
+
+        <View style={styles.mainControlsRow}>
+          <View style={{ width: 90, alignItems: 'center' }}>
+            <TouchableOpacity style={styles.iconButton} onPress={toggleLooping}>
+              {loopMode === 0 && <Repeat color={subTextColor} size={26} />}
+              {loopMode === 1 && <Repeat color={activeColor} size={26} />}
+              {loopMode === 2 && <Repeat1 color={activeColor} size={26} />}
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.playPauseButton} 
+            onPress={handleMainPlayToggle}
+          >
+            {isPlaying && !isPaused ? (
+              <Pause color="#FFF" size={32} />
+            ) : (
+              <Play color="#FFF" size={32} style={{ marginLeft: 4 }} />
+            )}
+          </TouchableOpacity>
+
+          <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (!isPremium) return showPremiumLimitAlert('倍速再生');
+                setSpeed(Math.max(1, Math.floor(speed) - 1));
+              }} 
+              style={{ padding: 8 }}
+            >
+              <Text style={{ color: activeColor, fontSize: 24, fontWeight: 'bold' }}>-</Text>
+            </TouchableOpacity>
+            <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 14, minWidth: 28, textAlign: 'center' }}>{speed.toFixed(1)}x</Text>
+            <TouchableOpacity 
+              onPress={() => {
+                if (!isPremium) return showPremiumLimitAlert('倍速再生');
+                setSpeed(Math.min(10, Math.floor(speed) + 1));
+              }} 
+              style={{ padding: 8 }}
+            >
+              <Text style={{ color: activeColor, fontSize: 22, fontWeight: 'bold' }}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.speedSection, { backgroundColor: cardBg, borderColor, padding: 16, borderRadius: 16, borderWidth: 1, marginTop: 12 }]}>
+        <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 12 }}>{getTranslation(language, 'player', 'playbackSpeed')}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          {[1, 2, 4, 6, 10].map(s => (
+            <TouchableOpacity
+              key={s}
+              style={[
+                styles.speedChip, 
+                { 
+                  backgroundColor: speed === s ? activeColor : inactiveColor, 
+                  borderColor: speed === s ? activeColor : borderColor,
+                  flex: 1,
+                  marginHorizontal: 4,
+                }
+              ]}
+              onPress={() => {
+                if (!isPremium && s !== 1) return showPremiumLimitAlert('倍速再生');
+                setSpeed(s);
+              }}
+            >
+              <Text style={{ color: speed === s ? '#FFF' : textColor, fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>{s}x</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <TouchableOpacity 
+        style={[styles.settingsToggle, { backgroundColor: cardBg, borderColor }]} 
+        onPress={() => setShowSettings(!showSettings)}
+      >
+        <Settings2 color={activeColor} size={20} />
+        <Text style={[styles.settingsToggleText, { color: textColor }]}>{getTranslation(language, 'player', 'settingTitle')}</Text>
+      </TouchableOpacity>
+
+      {showSettings && (
+        <View style={[styles.settingsPanel, { backgroundColor: cardBg, borderColor }]}>
+          {MemoizedBgmRow}
+          <View style={styles.volRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', width: 60 }}>
+              <Mic color={textColor} size={20} />
+              <Text style={{ color: subTextColor, fontSize: 11, marginLeft: 4 }}>{getTranslation(language, 'player', 'voiceVol')}</Text>
+            </View>
+            <View style={styles.volControlArea}>
+              <TouchableOpacity onPress={() => adjustVol(voiceVolume, setVoiceVolume, -0.2)} style={[styles.volBtn, { borderColor }]}>
+                <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>-</Text>
+              </TouchableOpacity>
+              <Text style={{ color: textColor, width: 44, textAlign: 'center', fontWeight: 'bold' }}>{Math.round(voiceVolume * 100)}%</Text>
+              <TouchableOpacity onPress={() => adjustVol(voiceVolume, setVoiceVolume, 0.2)} style={[styles.volBtn, { borderColor }]}>
+                <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.volRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', width: 60 }}>
+              <Music color={bgmType !== 'none' ? textColor : subTextColor} size={20} />
+            </View>
+            {bgmType !== 'none' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <TouchableOpacity 
+                  onPress={handleBgmPlayToggle} 
+                  disabled={isBgmLoading}
+                  style={{ padding: 6, backgroundColor: isBgmLoading ? inactiveColor : activeColor, borderRadius: 16, marginRight: 8, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}
+                >
+                  {isBgmLoading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : bgmIsPlaying ? (
+                    <Pause color="#FFF" size={14} />
+                  ) : (
+                    <Play color="#FFF" size={14} style={{ marginLeft: 3 }} />
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleBgmStop} style={{ padding: 6, backgroundColor: cardBg, borderColor, borderWidth: 1, borderRadius: 16 }}>
+                  <Square color="#FF3B30" size={14} />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.volControlArea}>
+              <TouchableOpacity onPress={() => adjustVol(bgmVolume, setBgmVolume, -0.2)} style={[styles.volBtn, { borderColor }]}>
+                <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>-</Text>
+              </TouchableOpacity>
+              <Text style={{ color: textColor, width: 44, textAlign: 'center', fontWeight: 'bold' }}>{Math.round(bgmVolume * 100)}%</Text>
+              <TouchableOpacity onPress={() => adjustVol(bgmVolume, setBgmVolume, 0.2)} style={[styles.volBtn, { borderColor }]}>
+                <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {MemoizedTabsRow}
+
+      {activePlaylistId ? (
+        <View style={{ marginBottom: 16, paddingHorizontal: 4, marginTop: 12 }}>
+          <Text style={{ color: activeColor, fontWeight: 'bold' }}>
+            🎵 プレイリスト「{playlists.find((p: any) => p.id === activePlaylistId)?.name}」を再生中...
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+});
 export function PlayerScreen({ route, navigation }: any) {
   const store = useAppStore();
-  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl, customBgms, addCustomBgm, removeCustomBgm, isVisualizationEnabled } = store;
+  const { affirmations, removeAffirmation, toggleFavorite, isDarkMode, voiceVolume, bgmVolume, setVoiceVolume, setBgmVolume, bgmType, playlists, listenedDays, currentStreak, markListenedToday, bgImageUrl, customBgms, addCustomBgm, removeCustomBgm, isVisualizationEnabled, membershipType, language, userId } = store;
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
@@ -137,33 +343,32 @@ export function PlayerScreen({ route, navigation }: any) {
   const activeColor = '#6B4EFF'; 
   const inactiveColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0,0,0,0.05)';
 
+  const BGM_LIST = getBgmList(language);
+
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [bgmSound, setBgmSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [loopMode, setLoopMode] = useState<0 | 1 | 2>(0); // 0:なし, 1:リストループ, 2:1曲ループ
   const [speed, setSpeed] = useState(1.0);
+
+const isPremium = membershipType === 'premium';
+
+  
+  const showPremiumLimitAlert = (feature: string) => {
+    Alert.alert(
+      'プレミアム機能',
+      `${feature}はサブスク会員限定の機能です。月500円で全機能が使い放題になり、初回3000ポイントも付与されます！`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '詳しく見る', onPress: () => navigation.navigate('Premium') }
+      ]
+    );
+  };
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
-  const bgmList = [
-    { id: 'none', label: 'なし' },
-    { id: 'focus', label: 'ピアノ(カノン) ★', url: 'https://archive.org/download/CanonInD_261/CanoninD.mp3', tag: '定番' },
-    { id: 'moonlight', label: 'ピアノ(月光) ★', url: 'https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3', tag: '定番' },
-    { id: 'bgm1', label: 'BGM1', source: require('../../assets/bgm/bgm_1.mp4'), tag: '定番' },
-    { id: 'bgm2', label: 'BGM2', source: require('../../assets/bgm/bgm_2.mp4'), tag: '定番' },
-    // ローカル音源 (requireを使用)
-    { id: '396hz', label: '解放 (396Hz)', source: require('../../assets/bgm/bgm_396hz.mp3'), tag: 'ソルフェ' },
-    { id: '432hz', label: '宇宙 (432Hz)', source: require('../../assets/bgm/bgm_432hz.mp3'), tag: 'ソルフェ' },
-    { id: '528hz', label: '奇跡 (528Hz)', source: require('../../assets/bgm/bgm_528hz.mp3'), tag: 'ソルフェ' },
-    { id: '852hz', label: '覚醒 (852Hz)', source: require('../../assets/bgm/bgm_852hz.mp3'), tag: 'ソルフェ' },
-    { id: '963hz', label: '宇宙意識 (963Hz)', source: require('../../assets/bgm/bgm_963hz.mp3'), tag: 'ソルフェ' },
-    { id: 'river_local', label: '川のせせらぎ', source: require('../../assets/bgm/bgm_river_local.mp3'), tag: '自然' },
-    { id: 'fire_local', label: '焚き火', source: require('../../assets/bgm/bgm_fire_local.mp3'), tag: '自然' },
-    { id: 'birds_local', label: '鳥のさえずり', source: require('../../assets/bgm/bgm_birds_local.mp3'), tag: '自然' },
-    { id: 'noise_local', label: 'ホワイトノイズ', source: require('../../assets/bgm/bgm_noise.mp3'), tag: '自然' },
-  ];
 
   const handleAddCustomBgm = async () => {
     try {
@@ -173,7 +378,6 @@ export function PlayerScreen({ route, navigation }: any) {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        // ファイルが一意かつ再起動後も読めるようにドキュメントフォルダへコピー
         const ext = asset.name.split('.').pop() || 'tmp';
         const localUri = FileSystem.documentDirectory + `custom_bgm_${Date.now()}.${ext}`;
         await FileSystem.copyAsync({ from: asset.uri, to: localUri });
@@ -200,18 +404,16 @@ export function PlayerScreen({ route, navigation }: any) {
   const [bgmIsPlaying, setBgmIsPlaying] = useState(false);
   const [isBgmLoading, setIsBgmLoading] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
-  const loadingActionId = React.useRef<number>(0);
+  const loadingActionId = React.useRef(0);
 
-  // プレイリストの直接再生リクエストを受け取る
   const playPlaylistId = route?.params?.playPlaylistId;
   useEffect(() => {
     if (playPlaylistId) {
       setActivePlaylistId(playPlaylistId);
-      setActiveTab('all'); // タブの見た目をリセット
+      setActiveTab('all');
       const pl = playlists.find(p => p.id === playPlaylistId);
       if (pl && pl.itemIds.length > 0) {
         setSelectedId(pl.itemIds[0]);
-        // 再生準備
         setIsPlaying(false);
         setIsPaused(false);
       }
@@ -219,7 +421,6 @@ export function PlayerScreen({ route, navigation }: any) {
     }
   }, [playPlaylistId, playlists, navigation]);
 
-  // 特定の音声（録音・AIなど）の直接再生リクエストを受け取る
   const playAudioId = route?.params?.playAudioId;
   const triggerTab = route?.params?.triggerTab;
   useEffect(() => {
@@ -241,7 +442,7 @@ export function PlayerScreen({ route, navigation }: any) {
     let next = current + delta;
     if (next > 1.0) next = 1.0;
     if (next < 0.0) next = 0.0;
-    setter(Math.round(next * 5) / 5); // 0.2単位に丸める
+    setter(Math.round(next * 5) / 5);
   };
 
   const isPlayingRef = React.useRef(isPlaying);
@@ -259,7 +460,6 @@ export function PlayerScreen({ route, navigation }: any) {
   const [isSeeking, setIsSeeking] = useState(false);
   const [playNextSignal, setPlayNextSignal] = useState(0);
 
-  // コンポーネント破棄時に音声をアンロード
   useEffect(() => {
     return () => {
       if (soundRef.current) soundRef.current.unloadAsync();
@@ -267,9 +467,10 @@ export function PlayerScreen({ route, navigation }: any) {
     };
   }, []);
 
-  // アファメーション削除等でIdが消えた時のフォールバック
   useEffect(() => {
-    if (selectedId && !affirmations.find(a => a.id === selectedId)) {
+    if (!selectedId && affirmations.length > 0) {
+      setSelectedId(affirmations[0].id);
+    } else if (selectedId && !affirmations.find(a => a.id === selectedId)) {
       setSelectedId(affirmations.length > 0 ? affirmations[0].id : null);
       if (soundRef.current) soundRef.current.stopAsync();
       setIsPlaying(false);
@@ -277,11 +478,9 @@ export function PlayerScreen({ route, navigation }: any) {
     }
   }, [affirmations, selectedId]);
 
-  // ▼ BGMの動的切り替え（BGM設定を変えた時用）
   useEffect(() => {
     let isCancelled = false;
     const changeBgm = async () => {
-      // 完全に独立したBGM管理
       if (!bgmIsPlaying) {
         if (bgmSound) {
           await bgmSound.stopAsync().catch(() => {});
@@ -303,15 +502,13 @@ export function PlayerScreen({ route, navigation }: any) {
       }
       
       let bgmSource: any = null;
-      const selectedBgmObj = bgmList.find(b => b.id === bgmType) as any;
+      const selectedBgmObj = BGM_LIST.find(b => b.id === bgmType) as any;
       const customBgmObj = customBgms.find(b => b.id === bgmType);
 
       if (selectedBgmObj) {
         if (selectedBgmObj.source) {
-          // アプリ内音源 (require)
           bgmSource = selectedBgmObj.source;
         } else if (selectedBgmObj.url) {
-          // 外部URL音源 (キャッシュ処理)
           let uriToPlay = selectedBgmObj.url;
           if (uriToPlay.startsWith('http')) {
             const localUri = `${FileSystem.documentDirectory}bgm_cache_${selectedBgmObj.id}.mp3`;
@@ -330,7 +527,6 @@ export function PlayerScreen({ route, navigation }: any) {
           bgmSource = { uri: uriToPlay };
         }
       } else if (customBgmObj && customBgmObj.uri) {
-        // ユーザー追加音源
         let targetBgmUri = customBgmObj.uri;
         const currentDocDir = FileSystem.documentDirectory;
         if (targetBgmUri.includes('/Documents/') && !targetBgmUri.startsWith(currentDocDir as string)) {
@@ -365,10 +561,8 @@ export function PlayerScreen({ route, navigation }: any) {
     
     changeBgm();
     return () => { isCancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bgmType, bgmIsPlaying]);
 
-  // 倍速・音量が変更されたときに即座に反映（処理を独立させて過剰コールを防ぐ）
   const speedRef = React.useRef(speed);
   useEffect(() => {
     if (sound && speedRef.current !== speed) {
@@ -397,9 +591,8 @@ export function PlayerScreen({ route, navigation }: any) {
     const actionId = ++loadingActionId.current;
     
     try {
-      store.markListenedToday(); // ここでストリーク記録！
+      store.markListenedToday();
       
-      // 1. 今鳴っている音声を即座に停止して破棄
       if (soundRef.current) {
         const prevSound = soundRef.current;
         setSound(null);
@@ -407,13 +600,11 @@ export function PlayerScreen({ route, navigation }: any) {
         await prevSound.unloadAsync().catch(e => console.warn('prev unload err', e));
       }
 
-      // 中断チェック
       if (actionId !== loadingActionId.current) return;
 
       let targetUri = item.uri;
       const currentDocDir = (FileSystem as any).documentDirectory;
 
-      // 【重要】パス補正ロジック
       if (targetUri.includes('/Documents/') && !targetUri.startsWith(currentDocDir)) {
         const filename = targetUri.split('/').pop();
         const correctedUri = `${currentDocDir}${filename}`;
@@ -424,6 +615,9 @@ export function PlayerScreen({ route, navigation }: any) {
       }
 
       let newSound;
+      let loadError: any = null;
+
+      // 最初の読み込み試行
       try {
         const result = await Audio.Sound.createAsync(
           { uri: targetUri },
@@ -432,40 +626,65 @@ export function PlayerScreen({ route, navigation }: any) {
             shouldCorrectPitch: true, 
             pitchCorrectionQuality: Audio.PitchCorrectionQuality.High,
             volume: volRef.current,
-            isLooping: false
+            isLooping: loopModeRef.current === 2
           }
         );
         newSound = result.sound;
-        
-        // 中断チェック（ロード中に別の曲が選ばれた場合）
-        if (actionId !== loadingActionId.current) {
-          await newSound.unloadAsync().catch(() => {});
-          return;
-        }
-
-        await newSound.setRateAsync(speedRef.current, true, Audio.PitchCorrectionQuality.High);
-        await newSound.playAsync();
-        
       } catch (err: any) {
-        // ... (Error UI) ...
+        loadError = err;
+      }
+
+      // --- リトライロジック (AI生成直後のファイルシステム遅延対策) ---
+      if (loadError && actionId === loadingActionId.current) {
+        console.log('First load failed, retrying in 500ms...', loadError.message);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const result = await Audio.Sound.createAsync(
+            { uri: targetUri },
+            { 
+              shouldPlay: false, 
+              shouldCorrectPitch: true, 
+              pitchCorrectionQuality: Audio.PitchCorrectionQuality.High,
+              volume: volRef.current,
+              isLooping: loopModeRef.current === 2
+            }
+          );
+          newSound = result.sound;
+          loadError = null; // 成功したのでエラーを消去
+        } catch (retryErr: any) {
+          loadError = retryErr;
+        }
+      }
+
+      if (loadError) {
         if (actionId !== loadingActionId.current) return;
 
-        console.error('Core Audio Load Err:', err);
+        console.error('Core Audio Load Err (after retry):', loadError);
         Alert.alert(
           '再生エラー', 
-          '音声ファイルが見つからないか、破損しています。この項目をリストから削除しますか？',
+          '音声ファイルがまだ準備できていないか、破損しています。もう一度お試しいただくか、この項目を削除してください。',
           [
-            { text: 'キャンセル', style: 'cancel' },
+            { text: '閉じる', style: 'cancel' },
             { text: '削除する', style: 'destructive', onPress: () => removeAffirmation(item.id) }
           ]
         );
         return;
       }
-      
-      setSound(newSound);
-      setIsPlaying(true);
-      setIsPaused(false);
-      setSelectedId(item.id);
+
+      // 成功した場合の処理
+      if (newSound) {
+        if (actionId !== loadingActionId.current) {
+          await newSound.unloadAsync().catch(() => {});
+          return;
+        }
+        await newSound.setRateAsync(speedRef.current, true, Audio.PitchCorrectionQuality.High);
+        await newSound.playAsync();
+        
+        setSound(newSound);
+        setIsPlaying(true);
+        setIsPaused(false);
+        setSelectedId(item.id);
+      }
 
     } catch (error) {
       if (actionId === loadingActionId.current) {
@@ -492,7 +711,6 @@ export function PlayerScreen({ route, navigation }: any) {
     }
   };
 
-  // --- 独立したBGMコントロール ---
   const handleBgmPlayToggle = () => {
     if (bgmType === 'none') {
       Alert.alert('BGM', '先にBGMを選択してください。');
@@ -509,10 +727,15 @@ export function PlayerScreen({ route, navigation }: any) {
     }
     setBgmIsPlaying(false);
   };
-  // -------------------------
 
   const toggleLooping = () => {
-    setLoopMode((prev) => ((prev + 1) % 3) as 0 | 1 | 2);
+    setLoopMode((prev) => {
+      const next = ((prev + 1) % 3) as 0 | 1 | 2;
+      if (soundRef.current) {
+        soundRef.current.setIsLoopingAsync(next === 2).catch(e => console.warn(e));
+      }
+      return next;
+    });
   };
 
   const handleMainPlayToggle = () => {
@@ -553,13 +776,17 @@ export function PlayerScreen({ route, navigation }: any) {
   };
 
   const getFilteredAffirmations = () => {
+    const safeAffirmations = affirmations || [];
+    const safePlaylists = playlists || [];
+
     if (activePlaylistId) {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (pl) {
-        return pl.itemIds.map(id => affirmations.find(a => a.id === id)).filter(Boolean) as Affirmation[];
+      const pl = safePlaylists.find(p => p.id === activePlaylistId);
+      if (pl && pl.itemIds) {
+        return pl.itemIds.map(id => safeAffirmations.find(a => a.id === id)).filter(Boolean) as Affirmation[];
       }
     }
-    return affirmations.filter(item => {
+    return safeAffirmations.filter(item => {
+      if (!item) return false;
       if (activeTab === 'fav') return item.isFavorite;
       if (activeTab === 'mic') return !item.title.startsWith('AI生成');
       if (activeTab === 'ai') return item.title.startsWith('AI生成');
@@ -567,285 +794,50 @@ export function PlayerScreen({ route, navigation }: any) {
     });
   };
 
-  const selectedItem = affirmations.find(a => a.id === selectedId);
+  const selectedItem = (affirmations || []).find(a => a.id === selectedId);
   const filteredList = getFilteredAffirmations();
 
-  // シグナルを受け取って次の曲を再生
   useEffect(() => {
     if (playNextSignal > 0) {
       const currentIndex = filteredList.findIndex(a => a.id === selectedId);
       if (currentIndex !== -1) {
-        if (currentIndex + 1 < filteredList.length) {
-          // 次の曲がある場合は再生
+        if (loopModeRef.current === 2) {
+          // 1曲リピート
+          playAudio(filteredList[currentIndex]);
+        } else if (currentIndex + 1 < filteredList.length) {
           const nextItem = filteredList[currentIndex + 1];
           playAudio(nextItem);
         } else if (loopModeRef.current === 1) {
-          // リストの最後まできたら最初の曲に戻ってループ
           playAudio(filteredList[0]);
         } else {
-          // ループOFFで最後まできたら終了
           setIsPlaying(false);
           setIsPaused(false);
         }
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playNextSignal]);
 
-  const MemoizedSpeedSlider = React.useMemo(() => {
-    const MemoSlider = React.memo(({ currentSpeed, onCommit, active, inactive }: any) => (
-      <Slider
-        style={{ width: '100%', height: 40 }}
-        minimumValue={1}
-        maximumValue={10}
-        step={0.1}
-        value={currentSpeed}
-        onSlidingComplete={onCommit}
-        minimumTrackTintColor={active}
-        maximumTrackTintColor={inactive}
-        thumbTintColor={active}
-      />
-    ), (prev, next) => prev.currentSpeed === next.currentSpeed && prev.active === next.active);
-    
-    return <MemoSlider currentSpeed={speed} onCommit={setSpeed} active={activeColor} inactive={inactiveColor} />;
-  }, [speed, activeColor, inactiveColor]);
-
-  // --- List Header (Main Player View) ---
-  const renderHeader = () => (
-    <View style={{ paddingBottom: 16 }}>
-      {/* ストリークバッジ表示 */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 12 }}>
-        <TouchableOpacity 
-          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,149,0,0.15)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,149,0,0.3)' }}
-          onPress={() => setShowCalendar(true)}
-        >
-          <Flame color="#FF9500" size={20} style={{ marginRight: 6 }} />
-          <Text style={{ color: '#FF9500', fontWeight: 'bold', fontSize: 14 }}>{currentStreak || 0}日連続クリア！</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 画面上部：再生テキスト表示領域 */}
+  // --- 再描画を最適化するための内部的なメモ化コンポーネント ---
+  const MemoizedAffirmationArea = React.useMemo(() => {
+    return (
       <View style={[styles.textAreaContainer, { backgroundColor: cardBg, borderColor }]}>
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
           <Text style={[styles.mainText, { color: textColor }]}>
-            {selectedItem?.text || selectedItem?.title || 'アファメーションを選択してください。'}
+            {selectedItem?.text || selectedItem?.title || getTranslation(language, 'player', 'empty').split('\n')[0]}
           </Text>
         </ScrollView>
       </View>
+    );
+  }, [selectedItem?.id, selectedItem?.text, selectedItem?.title, cardBg, borderColor, textColor]);
 
-      {/* プレイヤーコントロール群 (Boxed) */}
-      <View style={[styles.playerContainer, { backgroundColor: cardBg || inactiveColor, borderColor, padding: 20, borderRadius: 20, borderWidth: 1 }]}>
-        <AudioProgress 
-          sound={sound} 
-          onFinish={async () => {
-             if (loopModeRef.current === 2 && sound) {
-               // 1曲だけを繰り返す
-               await sound.replayAsync();
-             } else if (loopModeRef.current === 1 && filteredList.length === 1 && sound) {
-               // リストループだがリスト内に1曲しかない場合
-               await sound.replayAsync();
-             } else {
-               setPlayNextSignal(Date.now());
-             }
-          }} 
-          subTextColor={subTextColor} 
-          activeColor={activeColor} 
-        />
-
-        {/* メインボタン群 */}
-        <View style={[styles.mainControlsRow, { marginTop: 16 }]}>
-          <TouchableOpacity onPress={toggleLooping} style={styles.iconButton}>
-            {loopMode === 2 ? (
-              <Repeat1 color={activeColor} size={28} />
-            ) : (
-              <Repeat color={loopMode === 1 ? activeColor : subTextColor} size={28} />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.playPauseButton, { backgroundColor: activeColor, width: 76, height: 76, borderRadius: 38 }]} 
-            onPress={handleMainPlayToggle}
-          >
-            {(isPlaying && !isPaused) ? <Pause color="#FFF" size={32} /> : <Play color="#FFF" size={32} style={{ marginLeft: 6 }} />}
-          </TouchableOpacity>
-
-          <View style={{ alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 }}>
-            <TouchableOpacity onPress={() => setSpeed(Math.min(10, Math.floor(speed) + 1))} style={{ paddingHorizontal: 16 }}>
-              <Text style={{ color: activeColor, fontSize: 20, fontWeight: 'bold' }}>+</Text>
-            </TouchableOpacity>
-            <Text style={{ color: activeColor, fontWeight: 'bold', fontSize: 16, marginVertical: 4 }}>{speed.toFixed(1)}x</Text>
-            <TouchableOpacity onPress={() => setSpeed(Math.max(1, Math.floor(speed) - 1))} style={{ paddingHorizontal: 16 }}>
-              <Text style={{ color: activeColor, fontSize: 22, fontWeight: 'bold', lineHeight: 22 }}>-</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 倍速・スライダー設定群 */}
-        <View style={[styles.speedSection, { backgroundColor: cardBg, borderColor, padding: 16, borderRadius: 16, borderWidth: 1, marginTop: 12 }]}>
-          <Text style={{ color: textColor, fontWeight: 'bold', marginBottom: 12 }}>再生速度</Text>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {[1, 2, 4, 6, 10].map(s => (
-              <TouchableOpacity
-                key={s}
-                style={[
-                  styles.speedChip, 
-                  { 
-                    backgroundColor: speed === s ? activeColor : inactiveColor, 
-                    borderColor: speed === s ? activeColor : borderColor,
-                    flex: 1,
-                    marginHorizontal: 4,
-                  }
-                ]}
-                onPress={() => setSpeed(s)}
-              >
-                <Text style={{ color: speed === s ? '#FFF' : textColor, fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>{s}x</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-        </View>
-
-        {/* BGM・音量設定トグル */}
-        <TouchableOpacity 
-          style={[styles.settingsToggle, { backgroundColor: cardBg, borderColor }]} 
-          onPress={() => setShowSettings(!showSettings)}
-        >
-          <Settings2 color={activeColor} size={20} />
-          <Text style={[styles.settingsToggleText, { color: textColor }]}>音量 & BGM設定</Text>
-        </TouchableOpacity>
-
-        {showSettings && (
-          <View style={[styles.settingsPanel, { backgroundColor: cardBg, borderColor }]}>
-            <View style={styles.volRow}>
-              <Text style={{color: textColor, fontSize: 13, marginRight: 8, width: 60}}>BGM選択:</Text>
-              <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'column' }}>
-                  {/* カテゴリごとに分けて表示 */}
-                  {['定番', 'ソルフェ', '自然'].map(category => (
-                    <View key={category} style={{ flexDirection: 'row', marginBottom: 8 }}>
-                      {bgmList.filter(b => b.tag === category || (category === '定番' && b.id === 'none')).map((bgm) => (
-                        <TouchableOpacity 
-                          key={bgm.id} 
-                          style={[
-                            styles.bgmChip, 
-                            { 
-                              backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor,
-                              borderWidth: 1,
-                              borderColor: bgmType === bgm.id ? activeColor : borderColor
-                            }
-                          ]}
-                          onPress={() => {
-                            if (bgmType !== bgm.id) {
-                              setIsBgmLoading(true);
-                              store.setBgmType(bgm.id);
-                              setBgmIsPlaying(true);
-                            }
-                          }}
-                        >
-                          <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 11, fontWeight: '600'}}>
-                            {bgm.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  ))}
-                  
-                  {/* カスタムBGM */}
-                  <View style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
-                    {customBgms.map((bgm) => (
-                      <View key={bgm.id} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-                        <TouchableOpacity 
-                          style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginRight: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
-                          onPress={() => store.setBgmType(bgm.id)}
-                        >
-                          <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 11, fontWeight: '500'}} numberOfLines={1}>{bgm.name.length > 6 ? bgm.name.substring(0,6)+'...' : bgm.name}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.bgmChip, { backgroundColor: '#FF3B30', paddingHorizontal: 6, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: 28, justifyContent: 'center' }]}
-                          onPress={() => {
-                            if (bgmType === bgm.id) store.setBgmType('none');
-                            removeCustomBgm(bgm.id);
-                            FileSystem.deleteAsync(bgm.uri, { idempotent: true });
-                          }}
-                        >
-                          <X color="#FFF" size={12} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                    <TouchableOpacity 
-                      style={[styles.bgmChip, { backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor }]}
-                      onPress={handleAddCustomBgm}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Plus color={activeColor} size={14} style={{ marginRight: 4 }} />
-                        <Text style={{color: activeColor, fontSize: 11, fontWeight: 'bold'}}>追加</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </ScrollView>
-            </View>
-            <View style={styles.volRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', width: 60 }}>
-                <Mic color={textColor} size={20} />
-                <Text style={{ color: subTextColor, fontSize: 11, marginLeft: 4 }}>声</Text>
-              </View>
-              <View style={styles.volControlArea}>
-                <TouchableOpacity onPress={() => adjustVol(voiceVolume, store.setVoiceVolume, -0.2)} style={[styles.volBtn, { borderColor }]}>
-                  <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>-</Text>
-                </TouchableOpacity>
-                <Text style={{ color: textColor, width: 44, textAlign: 'center', fontWeight: 'bold' }}>{Math.round(voiceVolume * 100)}%</Text>
-                <TouchableOpacity onPress={() => adjustVol(voiceVolume, store.setVoiceVolume, 0.2)} style={[styles.volBtn, { borderColor }]}>
-                  <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.volRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', width: 60 }}>
-                <Music color={bgmType !== 'none' ? textColor : subTextColor} size={20} />
-              </View>
-              {bgmType !== 'none' && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <TouchableOpacity 
-                    onPress={handleBgmPlayToggle} 
-                    disabled={isBgmLoading}
-                    style={{ padding: 6, backgroundColor: isBgmLoading ? inactiveColor : activeColor, borderRadius: 16, marginRight: 8, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}
-                  >
-                    {isBgmLoading ? (
-                      <ActivityIndicator size="small" color="#FFF" />
-                    ) : bgmIsPlaying ? (
-                      <Pause color="#FFF" size={14} />
-                    ) : (
-                      <Play color="#FFF" size={14} style={{ marginLeft: 3 }} />
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleBgmStop} style={{ padding: 6, backgroundColor: cardBg, borderColor, borderWidth: 1, borderRadius: 16 }}>
-                    <Square color="#FF3B30" size={14} />
-                  </TouchableOpacity>
-                </View>
-              )}
-              <View style={styles.volControlArea}>
-                <TouchableOpacity onPress={() => adjustVol(bgmVolume, store.setBgmVolume, -0.2)} style={[styles.volBtn, { borderColor }]}>
-                  <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>-</Text>
-                </TouchableOpacity>
-                <Text style={{ color: textColor, width: 44, textAlign: 'center', fontWeight: 'bold' }}>{Math.round(bgmVolume * 100)}%</Text>
-                <TouchableOpacity onPress={() => adjustVol(bgmVolume, store.setBgmVolume, 0.2)} style={[styles.volBtn, { borderColor }]}>
-                  <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold' }}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* カテゴリタブ */}
+  const MemoizedTabsRow = React.useMemo(() => {
+    return (
       <View style={styles.tabsRow}>
         {[
-          { id: 'all', label: 'すべて' },
-          { id: 'mic', label: '録音' },
-          { id: 'ai', label: 'AI生成' },
-          { id: 'fav', label: 'お気に入り' }
+          { id: 'all', label: getTranslation(language, 'player', 'tabAll') },
+          { id: 'mic', label: getTranslation(language, 'player', 'tabRec') },
+          { id: 'ai', label: getTranslation(language, 'player', 'tabAi') },
+          { id: 'fav', label: getTranslation(language, 'player', 'tabFav') }
         ].map(tab => (
           <TouchableOpacity 
             key={tab.id}
@@ -864,15 +856,104 @@ export function PlayerScreen({ route, navigation }: any) {
           </TouchableOpacity>
         ))}
       </View>
-      {activePlaylistId ? (
-        <View style={{ marginBottom: 16, paddingHorizontal: 4 }}>
-          <Text style={{ color: activeColor, fontWeight: 'bold' }}>
-            🎵 プレイリスト「{playlists.find(p => p.id === activePlaylistId)?.name}」を再生中...
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
+    );
+  }, [activeTab, activePlaylistId, activeColor, inactiveColor, textColor]);
+
+  const MemoizedBgmRow = React.useMemo(() => {
+    return (
+      <View style={styles.volRow}>
+        <Text style={{color: textColor, fontSize: 13, marginRight: 8, width: 60}}>{getTranslation(language, 'player', 'bgmSelect')}</Text>
+        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'column' }}>
+            {['定番', 'ソルフェ', '自然'].map(category => (
+              <View key={category} style={{ flexDirection: 'row', marginBottom: 8 }}>
+                {BGM_LIST.filter(b => b.tag === category || (category === '定番' && b.id === 'none')).map((bgm) => (
+                  <TouchableOpacity 
+                    key={bgm.id} 
+                    style={[
+                      styles.bgmChip, 
+                      { 
+                        backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor,
+                        borderWidth: 1,
+                        borderColor: bgmType === bgm.id ? activeColor : borderColor
+                      }
+                    ]}
+                    onPress={() => {
+                      if (!isPremium && bgm.id !== 'none') return showPremiumLimitAlert('BGM機能');
+                      if (bgmType !== bgm.id) {
+                        setIsBgmLoading(true);
+                        store.setBgmType(bgm.id);
+                        setBgmIsPlaying(true);
+                      }
+                    }}
+                  >
+                    <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 11, fontWeight: '600'}}>
+                      {bgm.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+            
+            <View style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+              {customBgms.map((bgm) => (
+                <View key={bgm.id} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                  <TouchableOpacity 
+                    style={[styles.bgmChip, { backgroundColor: bgmType === bgm.id ? activeColor : inactiveColor, marginRight: 0, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
+                    onPress={() => store.setBgmType(bgm.id)}
+                  >
+                    <Text style={{color: bgmType === bgm.id ? '#FFF' : textColor, fontSize: 11, fontWeight: '500'}} numberOfLines={1}>{bgm.name.length > 6 ? bgm.name.substring(0,6)+'...' : bgm.name}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.bgmChip, { backgroundColor: '#FF3B30', paddingHorizontal: 6, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: 28, justifyContent: 'center' }]}
+                    onPress={() => {
+                      if (bgmType === bgm.id) store.setBgmType('none');
+                      removeCustomBgm(bgm.id);
+                      FileSystem.deleteAsync(bgm.uri, { idempotent: true });
+                    }}
+                  >
+                    <X color="#FFF" size={12} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity 
+                style={[styles.bgmChip, { backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 1, borderColor: activeColor }]}
+                onPress={handleAddCustomBgm}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Plus color={activeColor} size={14} style={{ marginRight: 4 }} />
+                  <Text style={{color: activeColor, fontSize: 11, fontWeight: 'bold'}}>追加</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }, [bgmType, customBgms, isPremium, textColor, activeColor, inactiveColor, borderColor, isBgmLoading]);
+
+  const headerProps = {
+    currentStreak, setShowCalendar, MemoizedAffirmationArea, 
+    sound, setPlayNextSignal, subTextColor, activeColor,
+    loopMode, toggleLooping, isPlaying, isPaused, handleMainPlayToggle,
+    speed, isPremium, showPremiumLimitAlert, setSpeed,
+    textColor, cardBg, borderColor, inactiveColor,
+    showSettings, setShowSettings, MemoizedBgmRow, 
+    voiceVolume, adjustVol, setVoiceVolume, bgmType, handleBgmPlayToggle, 
+    isBgmLoading, bgmIsPlaying, handleBgmStop, bgmVolume, setBgmVolume,
+    MemoizedTabsRow, activePlaylistId, playlists: playlists || [], store
+  };
+
+  const MemoizedHeader = React.useMemo(() => (
+    <PlayerHeader {...headerProps} />
+  ), [
+    currentStreak, MemoizedAffirmationArea, sound, loopMode, isPlaying, 
+    isPaused, speed, showSettings, MemoizedBgmRow, voiceVolume, 
+    bgmIsPlaying, bgmVolume, MemoizedTabsRow, 
+    activePlaylistId, activeColor, textColor, inactiveColor, subTextColor, 
+    cardBg, borderColor, isBgmLoading, bgmType, playlists
+  ]);
+
 
   const renderCalendarModal = () => {
     const markedDates: any = {};
@@ -950,10 +1031,6 @@ export function PlayerScreen({ route, navigation }: any) {
         <LinearGradient colors={themeColors as [string, string]} style={StyleSheet.absoluteFill} />
       )}
       {isVisualizationEnabled && <Visualization isDarkMode={isDarkMode} />}
-      {/* 
-        ★ ScrollViewで全体を囲むとネストエラー・パフォーマンス低下を招くため削除！ 
-        代わりに FlatList の ListHeaderComponent を使って上部のPlayer領域を描画します。
-      */}
       <FlatList
         data={filteredList}
         keyExtractor={(item) => item.id}
@@ -964,7 +1041,7 @@ export function PlayerScreen({ route, navigation }: any) {
         windowSize={10}
         removeClippedSubviews={true}
         extraData={{ isPlaying, isPaused, speed, showSettings, bgmVolume, voiceVolume, bgmType, activeTab, loopMode, bgmIsPlaying, cardBg, activeColor, textColor, activePlaylistId }}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={MemoizedHeader}
         renderItem={({ item, index }) => (
           <AffirmationListItem 
             item={item}
@@ -979,16 +1056,12 @@ export function PlayerScreen({ route, navigation }: any) {
             subTextColor={subTextColor}
             onPress={(id: string) => {
               if (selectedId !== id) {
-                // UI切り替えを瞬時に行うためセットだけ先にやる
                 setSelectedId(id);
-                // レンダリング完了後に重いAudio破棄を実行させるため50ms遅延
                 setTimeout(() => {
                   if (isPlayingRef.current) {
-                    // もし再生状態なら、瞬時に新しい曲へオートプレイ
                     const nextItem = affirmations.find(a => a.id === id);
                     if (nextItem) playAudio(nextItem);
                   } else {
-                    // 停止状態ならただの選択切り替えとしてAudioを停止
                     if (soundRef.current) soundRef.current.stopAsync();
                     setIsPlaying(false);
                     setIsPaused(false);
@@ -1005,6 +1078,18 @@ export function PlayerScreen({ route, navigation }: any) {
         )}
       />
       {renderCalendarModal()}
+      
+      {!isPremium && (
+        <View style={styles.adContainer}>
+          <BannerAd
+            unitId="ca-app-pub-6343618071277983/1442484920"
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: true,
+            }}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -1015,7 +1100,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   closeBtn: { padding: 4 },
   textAreaContainer: {
-    height: 280,
+    height: 350,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
@@ -1026,7 +1111,7 @@ const styles = StyleSheet.create({
   playerContainer: { marginBottom: 20 },
   sliderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, paddingHorizontal: 4 },
   timeText: { fontSize: 13, width: 38, textAlign: 'center' },
-  mainControlsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 24, paddingHorizontal: 16, gap: 40 }, 
+  mainControlsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 24, paddingHorizontal: 16, gap: 25 }, 
   iconButton: { padding: 12 },
   playPauseButton: { backgroundColor: '#6B4EFF', width: 76, height: 76, borderRadius: 38, justifyContent: 'center', alignItems: 'center' },
   speedSection: { marginBottom: 20 },
@@ -1038,7 +1123,7 @@ const styles = StyleSheet.create({
   settingsToggleText: { marginLeft: 8, fontSize: 14, fontWeight: '600' },
   settingsPanel: { padding: 16, borderRadius: 12, borderWidth: 1, marginTop: 8 },
   volRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
-  tabsRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'center' },
+  tabsRow: { flexDirection: 'row', marginVertical: 20, alignItems: 'center' },
   tabChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
   listItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
   listIndex: { fontSize: 14, width: 24 },
@@ -1048,5 +1133,12 @@ const styles = StyleSheet.create({
   listAction: { padding: 8, marginLeft: 4 },
   bgmChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8 },
   volControlArea: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
-  volBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' }
+  volBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  adContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
+    width: '100%',
+  }
 });

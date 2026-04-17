@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Alert, Modal, SafeAreaView, Platform, ActivityIndicator, Image, TextInput, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '../store/useAppStore';
-import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Share2, Calendar as CalendarIcon, Key, Zap, Trash2 } from 'lucide-react-native';
+import { FileText, Moon, Sun, HelpCircle, X, Home, Mic, Sparkles, Bell, Cloud, LogOut, Image as ImageIcon, Flame, Zap, Trash2, Globe } from 'lucide-react-native';
+import { getTranslation } from '../i18n/translations';
 import * as Notifications from 'expo-notifications';
 import { onAuthStateChanged, signOut, User, deleteUser } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
 import { syncToCloud, restoreFromCloud } from '../services/cloudSync';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Purchases from 'react-native-purchases';
 import * as ImagePicker from 'expo-image-picker';
 
 Notifications.setNotificationHandler({
@@ -59,7 +61,7 @@ const INSPIRING_MESSAGES = [
 ];
 
 export function SettingScreen({ navigation }: any) {
-  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl, elevenLabsApiKey, setElevenLabsApiKey, isVisualizationEnabled, setIsVisualizationEnabled, affirmations } = useAppStore();
+  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl, elevenLabsApiKey, setElevenLabsApiKey, isVisualizationEnabled, setIsVisualizationEnabled, affirmations, pointBalance, membershipType, userId, language, setLanguage } = useAppStore();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -70,7 +72,7 @@ export function SettingScreen({ navigation }: any) {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      Alert.alert('権限エラー', 'カメラロールへのアクセスを許可してください');
+      Alert.alert(language === 'ja' ? '権限エラー' : 'Permission Error', language === 'ja' ? 'カメラロールへのアクセスを許可してください' : 'Please allow camera roll access');
       return;
     }
 
@@ -82,14 +84,14 @@ export function SettingScreen({ navigation }: any) {
 
     if (!pickerResult.canceled && pickerResult.assets.length > 0) {
       setBgImageUrl(pickerResult.assets[0].uri);
-      Alert.alert('完了', 'ホーム画面の背景画像を設定しました！\n（タブから「ホーム」に戻って確認してみてください✨）');
+      Alert.alert(language === 'ja' ? '完了' : 'Success', language === 'ja' ? 'ホーム画面の背景画像を設定しました！\n（タブから「ホーム」に戻って確認してみてください✨）' : 'Background image set! Check home screen ✨');
     }
   };
 
   const handleResetImage = () => {
-    Alert.alert('確認', '背景画像をデフォルト状態（グラデーション）に戻しますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '戻す', style: 'destructive', onPress: () => setBgImageUrl(null) }
+    Alert.alert(language === 'ja' ? '確認' : 'Reset', language === 'ja' ? '背景画像をデフォルト状態（グラデーション）に戻しますか？' : 'Reset background image?', [
+      { text: getTranslation(language, 'player', 'cancel'), style: 'cancel' },
+      { text: language === 'ja' ? '戻す' : 'Reset', style: 'destructive', onPress: () => setBgImageUrl(null) }
     ]);
   };
 
@@ -99,9 +101,9 @@ export function SettingScreen({ navigation }: any) {
   }, []);
 
   const handleLogout = async () => {
-    Alert.alert('ログアウト', 'ログアウトしますか？ローカルのデータは削除されません。', [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: 'ログアウト', style: 'destructive', onPress: async () => await signOut(auth) }
+    Alert.alert(getTranslation(language, 'settings', 'logout'), language === 'ja' ? 'ログアウトしますか？ローカルのデータは削除されません。' : 'Logout now? Local data will not be deleted.', [
+      { text: getTranslation(language, 'player', 'cancel'), style: 'cancel' },
+      { text: getTranslation(language, 'settings', 'logout'), style: 'destructive', onPress: async () => await signOut(auth) }
     ]);
   };
 
@@ -109,33 +111,33 @@ export function SettingScreen({ navigation }: any) {
     if (!user) return;
     
     Alert.alert(
-      '⚠️ 退会（アカウント削除）',
-      'クラウド上のバックアップデータとアカウントを完全に削除しますか？\n（この操作は取り消せません）',
+      language === 'ja' ? '⚠️ 退会（アカウント削除）' : '⚠️ Delete Account',
+      language === 'ja' ? 'クラウド上のバックアップデータとアカウントを完全に削除しますか？\n（この操作は取り消せません）' : 'Delete cloud backup and account completely? (Cannot be undone)',
       [
-        { text: 'キャンセル', style: 'cancel' },
+        { text: getTranslation(language, 'player', 'cancel'), style: 'cancel' },
         { 
-          text: 'アカウントを削除', 
+          text: getTranslation(language, 'settings', 'deleteAcct'), 
           style: 'destructive', 
           onPress: async () => {
             try {
               setIsProcessingCloud(true);
-              setCloudProgressMsg('アカウント情報を削除しています...');
+              setCloudProgressMsg(language === 'ja' ? 'アカウント情報を削除しています...' : 'Deleting account data...');
               
               const docRef = doc(db, 'users', user.uid);
               await deleteDoc(docRef);
               await deleteUser(user);
               
               setIsProcessingCloud(false);
-              Alert.alert('完了', 'アカウントの削除が完了しました。ご利用ありがとうございました。');
+              Alert.alert(language === 'ja' ? '完了' : 'Success', language === 'ja' ? 'アカウントの削除が完了しました。ご利用ありがとうございました。' : 'Account deleted.');
             } catch (e: any) {
               setIsProcessingCloud(false);
               if (e.code === 'auth/requires-recent-login') {
                 Alert.alert(
-                  '再ログインが必要です',
-                  'セキュリティ保護のため、アカウント削除には最近のログインが必要です。一度ログアウトしてから再度ログインして実行してください。'
+                  language === 'ja' ? '再ログインが必要です' : 'Recent login required',
+                  language === 'ja' ? 'セキュリティ保護のため、アカウント削除には最近のログインが必要です。一度ログアウトしてから再度ログインして実行してください。' : 'For security, please logout and login again before deleting your account.'
                 );
               } else {
-                Alert.alert('エラー', 'アカウントの削除に失敗しました。\n' + e.message);
+                Alert.alert(language === 'ja' ? 'エラー' : 'Error', language === 'ja' ? 'アカウントの削除に失敗しました。\n' : 'Failed to delete account.\n' + e.message);
               }
             }
           } 
@@ -147,22 +149,22 @@ export function SettingScreen({ navigation }: any) {
   const handleSyncToCloud = () => {
     if (!user) return;
     Alert.alert(
-      'クラウド・バックアップ',
-      '現在の端末のデータをクラウドに保存（上書き）しますか？',
+      getTranslation(language, 'settings', 'syncTitle'),
+      language === 'ja' ? '現在の端末のデータをクラウドに保存（上書き）しますか？' : 'Backup current device data to cloud?',
       [
-        { text: 'キャンセル', style: 'cancel' },
+        { text: getTranslation(language, 'player', 'cancel'), style: 'cancel' },
         { 
-          text: 'バックアップ開始', 
+          text: language === 'ja' ? 'バックアップ開始' : 'Start Backup', 
           onPress: async () => {
             try {
               setIsProcessingCloud(true);
-              setCloudProgressMsg('データをアップロードしています...\nそのままお待ちください');
+              setCloudProgressMsg(language === 'ja' ? 'データをアップロードしています...\nそのままお待ちください' : 'Uploading data...\nPlease wait');
               await syncToCloud(user.uid, setCloudProgressMsg);
               setIsProcessingCloud(false);
-              Alert.alert('完了', 'クラウドへのバックアップが完了しました！');
+              Alert.alert(language === 'ja' ? '完了' : 'Success', language === 'ja' ? 'クラウドへのバックアップが完了しました！' : 'Cloud backup complete!');
             } catch (e: any) {
               setIsProcessingCloud(false);
-              Alert.alert('エラー', 'バックアップに失敗しました。\n' + e.message);
+              Alert.alert(language === 'ja' ? 'エラー' : 'Error', language === 'ja' ? 'バックアップに失敗しました。\n' : 'Backup failed.\n' + e.message);
             }
           } 
         }
@@ -173,27 +175,27 @@ export function SettingScreen({ navigation }: any) {
   const handleRestoreFromCloud = () => {
     if (!user) return;
     Alert.alert(
-      'クラウドからの復元',
-      'クラウド上のデータをこの端末に復元します。（現在の端末内のデータは上書きされます）',
+      language === 'ja' ? 'クラウドからの復元' : 'Cloud Restore',
+      language === 'ja' ? 'クラウド上のデータをこの端末に復元します。（現在の端末内のデータは上書きされます）' : 'Restore from cloud? (Current data will be overwritten)',
       [
-        { text: 'キャンセル', style: 'cancel' },
+        { text: getTranslation(language, 'player', 'cancel'), style: 'cancel' },
         { 
-          text: '復元開始', 
+          text: language === 'ja' ? '復元開始' : 'Start Restore', 
           style: 'destructive',
           onPress: async () => {
             try {
               setIsProcessingCloud(true);
-              setCloudProgressMsg('データをダウンロードしています...\n音声が多い場合は時間がかかります');
+              setCloudProgressMsg(language === 'ja' ? 'データをダウンロードしています...\n音声が多い場合は時間がかかります' : 'Downloading data...\nThis may take a while');
               const hasData = await restoreFromCloud(user.uid, setCloudProgressMsg);
               setIsProcessingCloud(false);
               if (hasData) {
-                Alert.alert('完了', 'データの復元が完了しました！');
+                Alert.alert(language === 'ja' ? '完了' : 'Success', language === 'ja' ? 'データの復元が完了しました！' : 'Data restored!');
               } else {
-                Alert.alert('お知らせ', 'クラウドにデータが見つかりませんでした。先にバックアップを行ってください。');
+                Alert.alert(language === 'ja' ? 'お知らせ' : 'Info', language === 'ja' ? 'クラウドにデータが見つかりませんでした。先にバックアップを行ってください。' : 'No data found in cloud.');
               }
             } catch (e: any) {
               setIsProcessingCloud(false);
-              Alert.alert('エラー', '復元に失敗しました。\n' + e.message);
+              Alert.alert(language === 'ja' ? 'エラー' : 'Error', language === 'ja' ? '復元に失敗しました。\n' : 'Restore failed.\n' + e.message);
             }
           } 
         }
@@ -216,7 +218,7 @@ export function SettingScreen({ navigation }: any) {
     // trigger params required for repeating daily
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "アファメーションの時間です✨",
+        title: language === 'ja' ? "アファメーションの時間です✨" : "Affirmation Time ✨",
         body: notificationBody,
         android: {
           channelId: 'default',
@@ -235,7 +237,7 @@ export function SettingScreen({ navigation }: any) {
     if (val) {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('エラー', '通知の権限がありません。本体の設定から許可してください。');
+        Alert.alert(language === 'ja' ? 'エラー' : 'Error', language === 'ja' ? '通知の権限がありません。本体の設定から許可してください。' : 'No notification permission. Please enable in settings.');
         setIsNotificationEnabled(false);
         return;
       }
@@ -258,19 +260,37 @@ export function SettingScreen({ navigation }: any) {
   const formatTime = (date: Date) => {
     const d = new Date(date);
     const m = d.getMinutes();
-    return `${d.getHours()}:${m < 10 ? '0' : ''}${m}`;
+    const h = d.getHours();
+    if (language === 'en') {
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${m < 10 ? '0' : ''}${m} ${ampm}`;
+    }
+    return `${h}:${m < 10 ? '0' : ''}${m}`;
   };
 
   const handlePrivacyPolicy = () => {
-    Alert.alert(
-      'プライバシーポリシー',
-      '当アプリはユーザーの皆様のプライバシーを尊重します。\n\n【外部サービスの利用について】\nアファメーションの生成および音声合成のため、第三者AIサービス（OpenAI, ElevenLabs）を利用しています。送信されたデータは生成の目的のみに使用されます。\n\n【データの取り扱いについて】\n・録音データは一時的にクラウドに保存され、AI音声合成の完了後に即座に消去されます。\n・生成された音声データはご本人専用のバケットに保管され、本人のみがアクセス可能です。\n・個人情報は一切の第三者に提供されません。',
-      [
-        { text: 'Webで全文を確認', onPress: () => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub') },
-        { text: '確認しました', style: 'default' }
-      ]
-    );
+    if (language === 'en') {
+      Alert.alert(
+        'Privacy Policy',
+        'We respect your privacy.\n\n[Use of External Services]\nFor text and speech synthesis, we use third-party AI (OpenAI, ElevenLabs). Data is used solely for generation.\n\n[Data Handling]\n- Recordings are temporarily stored in the cloud and deleted immediately after synthesis.\n- Generated audio is stored in your private bucket.\n- Personal info is never shared.',
+        [
+          { text: 'Full Policy (Web)', onPress: () => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub') },
+          { text: 'OK', style: 'default' }
+        ]
+      );
+    } else {
+      Alert.alert(
+        'プライバシーポリシー',
+        '当アプリはユーザーの皆様のプライバシーを尊重します。\n\n【外部サービスの利用について】\nアファメーションの生成および音声合成のため、第三者AIサービス（OpenAI, ElevenLabs）を利用しています。送信されたデータは生成の目的のみに使用されます。\n\n【データの取り扱いについて】\n・録音データは一時的にクラウドに保存され、AI音声合成の完了後に即座に消去されます。\n・生成された音声データはご本人専用のバケットに保管され、本人のみがアクセス可能です。\n・個人情報は一切の第三者に提供されません。',
+        [
+          { text: 'Webで全文を確認', onPress: () => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub') },
+          { text: '確認しました', style: 'default' }
+        ]
+      );
+    }
   };
+  
 
   const themeColors = isDarkMode ? ['#0A0A1A', '#1A1A2E'] : ['#F0F8FF', '#E6F4FE'];
   const textColor = isDarkMode ? '#FFFFFF' : '#1C1C1E';
@@ -284,8 +304,8 @@ export function SettingScreen({ navigation }: any) {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, paddingBottom: 10 }}>
           <View>
-            <Text style={[styles.title, { color: textColor, marginTop: 0 }]}>設定</Text>
-            <Text style={[styles.subtitle, { color: subTextColor, marginTop: 4 }]}>アプリの表示モードや規約を確認できます</Text>
+            <Text style={[styles.title, { color: textColor, marginTop: 0 }]}>{getTranslation(language, 'settings', 'title')}</Text>
+            <Text style={[styles.subtitle, { color: subTextColor, marginTop: 4 }]}>{getTranslation(language, 'settings', 'subtitle')}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Menu')} style={{ padding: 8, backgroundColor: cardBg, borderRadius: 20, borderWidth: 1, borderColor }}>
             <X color={textColor} size={24} />
@@ -293,14 +313,46 @@ export function SettingScreen({ navigation }: any) {
         </View>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
 
+        {/* 言語設定セクションを追加 */}
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>プレイヤー画面の背景・デザイン</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'langTitle')}</Text>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Globe color={textColor} size={24} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.rowText, { color: textColor }]}>
+                  {getTranslation(language, 'settings', 'langLabel')}
+                </Text>
+                <Text style={{ color: subTextColor, fontSize: 12 }}>
+                  {language === 'ja' ? '日本語' : 'English'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#F2F2F7', borderRadius: 8, padding: 4 }}>
+              <TouchableOpacity 
+                onPress={() => setLanguage('ja')}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: language === 'ja' ? activeColor : 'transparent' }}
+              >
+                <Text style={{ color: language === 'ja' ? 'white' : subTextColor, fontWeight: 'bold' }}>JA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => setLanguage('en')}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: language === 'en' ? activeColor : 'transparent' }}
+              >
+                <Text style={{ color: language === 'en' ? 'white' : subTextColor, fontWeight: 'bold' }}>EN</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'visTitle')}</Text>
           
           <View style={styles.row}>
             <View style={styles.rowLeft}>
               <Sparkles color={textColor} size={24} />
               <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>
-                視覚化アニメーションを表示
+                {getTranslation(language, 'settings', 'visToggle')}
               </Text>
             </View>
             <Switch
@@ -313,7 +365,7 @@ export function SettingScreen({ navigation }: any) {
 
           <View style={{ height: 1, backgroundColor: borderColor, marginVertical: 8 }} />
 
-          <Text style={[styles.rowText, { color: textColor, fontSize: 14, marginBottom: 12 }]}>お気に入りの写真を背景に設定</Text>
+          <Text style={[styles.rowText, { color: textColor, fontSize: 14, marginBottom: 12 }]}>{getTranslation(language, 'settings', 'bgImgTitle')}</Text>
           <View style={{ flexDirection: 'column', alignItems: 'stretch' }}>
             {bgImageUrl && (
               <View style={{ width: '100%', height: 140, borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
@@ -325,7 +377,7 @@ export function SettingScreen({ navigation }: any) {
               onPress={handlePickImage}
             >
               <ImageIcon color="#6B4EFF" size={20} style={{ marginRight: 8 }} />
-              <Text style={{ color: '#6B4EFF', fontWeight: 'bold' }}>アルバムから写真を選ぶ</Text>
+              <Text style={{ color: '#6B4EFF', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnPickImg')}</Text>
             </TouchableOpacity>
             
             {bgImageUrl && (
@@ -333,19 +385,19 @@ export function SettingScreen({ navigation }: any) {
                 style={[styles.syncButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FF3B30', marginTop: 8 }]}
                 onPress={handleResetImage}
               >
-                <Text style={{ color: '#FF3B30', fontWeight: 'bold' }}>写真をリセットする</Text>
+                <Text style={{ color: '#FF3B30', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnResetImg')}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>テーマ設定</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'themeTitle')}</Text>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
               {isDarkMode ? <Moon color={textColor} size={24} /> : <Sun color={textColor} size={24} />}
               <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>
-                ダークモード
+                {getTranslation(language, 'settings', 'darkToggle')}
               </Text>
             </View>
             <Switch
@@ -358,12 +410,12 @@ export function SettingScreen({ navigation }: any) {
         </View>
 
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>習慣化サポート</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'habTitle')}</Text>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
               <Bell color={textColor} size={24} />
               <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>
-                毎日のリマインダー通知
+                {getTranslation(language, 'settings', 'notifToggle')}
               </Text>
             </View>
             <Switch
@@ -376,7 +428,7 @@ export function SettingScreen({ navigation }: any) {
           
           {isNotificationEnabled && (
             <View style={[styles.row, { marginTop: 8 }]}>
-              <Text style={[styles.rowText, { color: subTextColor, fontSize: 14 }]}>通知時刻</Text>
+              <Text style={[styles.rowText, { color: subTextColor, fontSize: 14 }]}>{getTranslation(language, 'settings', 'notifTime')}</Text>
               
               {Platform.OS === 'ios' ? (
                 <DateTimePicker
@@ -407,51 +459,15 @@ export function SettingScreen({ navigation }: any) {
           )}
         </View>
 
-        <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>AI音声合成 (ElevenLabs) 設定</Text>
-          <Text style={{ color: subTextColor, fontSize: 13, marginBottom: 16, lineHeight: 20 }}>
-            自分の声をAIに学習させてアファメーションを作成する場合、ElevenLabsのAPIキーが必要です。
-          </Text>
-          
-          <TextInput
-            style={{ 
-              backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : '#FFFFFF', 
-              color: textColor, 
-              padding: 12, 
-              borderRadius: 8, 
-              borderWidth: 1, 
-              borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-              marginBottom: 8
-            }}
-            placeholder="ここにAPIキーを貼り付け (sk_...)"
-            placeholderTextColor={subTextColor}
-            value={elevenLabsApiKey || ''}
-            onChangeText={setElevenLabsApiKey}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Text style={{ color: subTextColor, fontSize: 11, marginBottom: 12, lineHeight: 16 }}>
-            ※APIキーはあなたの端末内にのみ保存され、開発者には一切送信されません。安心してご利用ください。
-          </Text>
-
-          {elevenLabsApiKey ? (
-            <Text style={{ color: '#34C759', fontSize: 13, fontWeight: 'bold' }}>✅ APIキー設定済み</Text>
-          ) : (
-            <TouchableOpacity onPress={() => navigation.navigate('Generate')}>
-              <Text style={{ color: activeColor, fontSize: 13, fontWeight: 'bold' }}>☞ 取得方法をチェックする</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>データ同期・バックアップ</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'syncTitle')}</Text>
           {user ? (
             <>
               <View style={styles.row}>
                 <View style={styles.rowLeft}>
                   <Cloud color={textColor} size={24} />
-                  <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>ログイン中</Text>
+                  <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>{getTranslation(language, 'settings', 'loggedIn')}</Text>
                 </View>
                 <Text style={{ color: subTextColor, fontSize: 13 }}>{user.email}</Text>
               </View>
@@ -460,21 +476,21 @@ export function SettingScreen({ navigation }: any) {
                 style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
                 onPress={handleSyncToCloud}
               >
-                <Text style={{ color: '#000', fontWeight: 'bold' }}>今すぐクラウドにバックアップ保存</Text>
+                <Text style={{ color: '#000', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnSync')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
                 style={[styles.syncButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00F2FE' }]}
                 onPress={handleRestoreFromCloud}
               >
-                <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>クラウドからデータを復元する</Text>
+                <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnRestore')}</Text>
               </TouchableOpacity>
               
               <View style={{ height: 1, backgroundColor: borderColor, marginVertical: 8 }} />
               <TouchableOpacity style={styles.row} onPress={handleLogout}>
                 <View style={styles.rowLeft}>
                   <LogOut color="#FF3B30" size={24} />
-                  <Text style={[styles.rowText, { color: '#FF3B30', marginLeft: 12 }]}>ログアウト</Text>
+                  <Text style={[styles.rowText, { color: '#FF3B30', marginLeft: 12 }]}>{getTranslation(language, 'settings', 'logout')}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -482,38 +498,38 @@ export function SettingScreen({ navigation }: any) {
               <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
                 <View style={styles.rowLeft}>
                   <Trash2 color={subTextColor} size={24} />
-                  <Text style={[styles.rowText, { color: subTextColor, marginLeft: 12, fontSize: 13 }]}>アカウントを削除して退会する</Text>
+                  <Text style={[styles.rowText, { color: subTextColor, marginLeft: 12, fontSize: 13 }]}>{getTranslation(language, 'settings', 'deleteAcct')}</Text>
                 </View>
               </TouchableOpacity>
             </>
           ) : (
             <>
               <Text style={[styles.rowText, { color: subTextColor, fontSize: 13, marginBottom: 16, lineHeight: 20 }]}>
-                アカウントを作成すると、録音した音声やAIが生成したアファメーションをクラウドにバックアップし、他の端末でも復元できるようになります。
+                {getTranslation(language, 'settings', 'loginPrompt')}
               </Text>
               <TouchableOpacity 
                 style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
                 onPress={() => navigation.navigate('Auth')}
               >
-                <Text style={{ color: '#000', fontWeight: 'bold' }}>ログイン / アカウント作成</Text>
+                <Text style={{ color: '#000', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnLogin')}</Text>
               </TouchableOpacity>
             </>
           )}
         </View>
 
         <View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>情報・ヘルプ</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'infoTitle')}</Text>
           <TouchableOpacity style={styles.row} onPress={() => setShowTutorial(true)}>
             <View style={styles.rowLeft}>
               <HelpCircle color={textColor} size={24} />
-              <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>使い方 (チュートリアル)</Text>
+              <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>{getTranslation(language, 'settings', 'tutorial')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ height: 1, backgroundColor: borderColor, marginVertical: 8 }} />
           <TouchableOpacity style={styles.row} onPress={handlePrivacyPolicy}>
             <View style={styles.rowLeft}>
               <FileText color={textColor} size={24} />
-              <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>プライバシーポリシー</Text>
+              <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>{getTranslation(language, 'settings', 'privacy')}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -525,7 +541,7 @@ export function SettingScreen({ navigation }: any) {
         <LinearGradient colors={themeColors as [string, string]} style={{ flex: 1 }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: textColor }]}>アプリの使い方</Text>
+              <Text style={[styles.modalTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'tutorialTitle')}</Text>
               <TouchableOpacity onPress={() => setShowTutorial(false)} style={styles.closeBtn}>
                 <X color={textColor} size={28} />
               </TouchableOpacity>
@@ -535,13 +551,10 @@ export function SettingScreen({ navigation }: any) {
               <View style={[styles.tutorialCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.tutorialHeader}>
                   <Home color="#00F2FE" size={24} />
-                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>ホーム画面（再生）</Text>
+                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'tutoHomeTitle')}</Text>
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
-                  作成したアファメーションの一覧と再生を行います。{'\n'}
-                  ・「すべて」「録音」「AI生成」などで表示を切り替えられます。{'\n'}
-                  ・リスト上から再生タイトルを長押しすると、名前を変更できます。{'\n'}
-                  ・再生速度やBGMを調整して、最も心地よい状態でお楽しみください。
+                  {getTranslation(language, 'settings', 'tutoHomeText')}
                 </Text>
               </View>
 
@@ -549,50 +562,45 @@ export function SettingScreen({ navigation }: any) {
                 <View style={styles.tutorialHeader}>
                   <Mic color="#34C759" size={24} />
                   <Sparkles color="#6B4EFF" size={24} style={{ marginLeft: -8 }} />
-                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>STEP 1 or 2：音声を作る</Text>
+                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'tutoStep1Title')}</Text>
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
-                  まず、あなたの潜在意識に届けたい「言葉」を用意します。{'\n'}
-                  ・**方法1 (録音)**：自分の声で直接吹き込みます。もっとも熱量が伝わりやすい方法です。{'\n'}
-                  ・**方法2 (AI生成)**：自分の声をAIが学習し、無限のアファメーションをあなたの声で代読させます。
+                  {getTranslation(language, 'settings', 'tutoStep1Text')}
                 </Text>
               </View>
 
               <View style={[styles.tutorialCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.tutorialHeader}>
                   <Zap color="#FF3B30" size={24} />
-                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>STEP 3：倍速で刻む！</Text>
+                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'tutoStep3Title')}</Text>
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
-                  録音または生成できたら、プレイヤーで再生しましょう。{'\n'}
-                  ・**2倍速〜10倍速**：脳が追いつかないほどの速さで聴くことで、表面的な意識（顕在意識）の批判をすり抜け、ダイレクトに潜在意識へ情報を書き込みます。
+                  {getTranslation(language, 'settings', 'tutoStep3Text')}
                 </Text>
               </View>
 
               <View style={[styles.tutorialCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.tutorialHeader}>
                   <HelpCircle color="#00F2FE" size={24} />
-                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>効果的な聴き方のヒント</Text>
+                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'tutoTipTitle')}</Text>
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
-                  ・**リラックス状態で**：寝起きや寝る前、入浴中など、脳波がアルファ波やシータ波に近いときが最適です。{'\n'}
-                  ・**毎日続ける**：潜在意識の書き換えには「繰り返し」が不可欠です。🔥バッジを目指してまずは21日間続けてみましょう。
+                  {getTranslation(language, 'settings', 'tutoTipText')}
                 </Text>
               </View>
 
               <View style={[styles.tutorialCard, { backgroundColor: cardBg, borderColor }]}>
                 <View style={styles.tutorialHeader}>
                   <Flame color="#FF9500" size={24} />
-                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>毎日のモチベーション維持機能</Text>
+                  <Text style={[styles.tutorialCardTitle, { color: textColor }]}>{getTranslation(language, 'settings', 'tutoMotivTitle')}</Text>
                 </View>
                 <Text style={[styles.tutorialText, { color: subTextColor }]}>
-                  ・ホーム画面上部に表示される「🔥 〇日連続」のバッジをタップすると、これまでの記録カレンダーを確認できます！{'\n'}
-                  ・「設定画面」の「ホーム画面の特別な背景」から、スマホ内の好きな画像を背景に設定できます（推しやペットの写真がおすすめ！）。
+                  {getTranslation(language, 'settings', 'tutoMotivText')}
                 </Text>
               </View>
 
               <TouchableOpacity style={styles.tutorialCloseButton} onPress={() => setShowTutorial(false)}>
-                <Text style={styles.tutorialCloseText}>使い始める</Text>
+                <Text style={styles.tutorialCloseText}>{getTranslation(language, 'settings', 'tutorialStart')}</Text>
               </TouchableOpacity>
 
             </ScrollView>
@@ -606,6 +614,7 @@ export function SettingScreen({ navigation }: any) {
           <Text style={styles.loadingText}>{cloudProgressMsg}</Text>
         </View>
       )}
+
       </SafeAreaView>
     </LinearGradient>
   );
@@ -630,6 +639,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 8,
+  },
+  purchaseBtn: {
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  purchaseTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  purchaseDesc: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+    marginTop: 2,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },

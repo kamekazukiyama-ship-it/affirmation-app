@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kazu.antigravity",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "newArchEnabled": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "アファメーションのボイスクローンを作成するために、自分の声を録音する目的でマイクを使用します。録音された声はAI音声生成にのみ使用されます。",
@@ -48,17 +48,28 @@
       "android"
     ],
     "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-6343618071277983~8462747901",
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713"
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-build-properties",
         {
+          "ios": {
+            "deploymentTarget": "15.1"
+          },
           "android": {
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "eas": {

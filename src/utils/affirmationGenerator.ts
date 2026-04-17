@@ -142,7 +142,146 @@ const dbOther: Record<string, AffirmationParts> = {
   },
 };
 
+// --- English Dictionaries ---
+
+const dbSelfEn: Record<string, AffirmationParts> = {
+  'Self-Esteem': {
+    prefixes: ['I am ', 'Every day, ', 'No matter what, ', 'Starting today, ', 'I choose to '],
+    cores: ['loving myself deeply, ', 'acknowledging my full value, ', 'accepting all my emotions, ', 'realizing my own greatness, ', 'shining my inner light, '],
+    suffixes: ['filled with completeness.', 'growing every day.', 'believing in my potential.', 'living in peace.', 'moving at my own pace.'],
+  },
+  'Gratitude': {
+    prefixes: ['I am ', 'At this moment, ', 'Every time I wake up, ', 'My life is ', 'For every little thing, '],
+    cores: ['noticing the love around me, ', 'opening my heart to blessings, ', 'finding small joys daily, ', 'thinking of those who support me, ', 'feeling the miracle of life, '],
+    suffixes: ['filled with deep gratitude.', 'overflowing with thanks.', 'bathed in warm love.', 'shining with appreciation.', 'living with a grateful heart.'],
+  },
+  'Goals': {
+    prefixes: ['I am ', 'With a strong will, ', 'Steadily every day, ', 'My future is ', 'Whatever challenges arise, '],
+    cores: ['moving toward my goals, ', 'taking action without hesitation, ', 'attracting success, ', 'expressing my full potential, ', 'working to realize my dreams, '],
+    suffixes: ['getting closer to success.', 'capable of overcoming anything.', 'headed for a great ending.', 'empowered to fulfill my dreams.', 'destined to reach my future.'],
+  },
+  'Healing': {
+    prefixes: ['I am ', 'Taking a deep breath, ', 'In this quiet time, ', 'My heart is ', 'Right here and now, '],
+    cores: ['letting go of past hurts, ', 'releasing all tension, ', 'receiving calm energy, ', 'giving myself deep rest, ', 'feeling peace from within, '],
+    suffixes: ['completely healed.', 'surrounded by calm light.', 'refreshed in mind and body.', 'filled with peaceful love.', 'protected by kindness.'],
+  },
+  'Motivation': {
+    prefixes: ['I am ', 'With overflowing vitality, ', 'From this very moment, ', 'From within me, ', 'Today, '],
+    cores: ['burning with passion for new challenges, ', 'awakening infinite energy, ', 'holding strong belief in myself, ', 'finding courage to cross any wall, ', 'acting with a positive mind, '],
+    suffixes: ['full of motivation.', 'capable of making anything possible.', 'performing at my best.', 'ready to create my future.', 'moving forward powerfully.'],
+  },
+  'Focus': {
+    prefixes: ['I am ', 'With a clear mind, ', 'Focusing on the now, ', 'My thoughts are ', 'Releasing all noise, '],
+    cores: ['deeply immersed in the task, ', 'connecting with my inner wisdom, ', 'showing incredible focus, ', 'capturing the right information, ', 'judging accurately without doubt, '],
+    suffixes: ['achieving the best results.', 'completing things with speed.', 'controlling everything perfectly.', 'filled with quiet confidence.', 'maintaining my best state.'],
+  },
+  'Relax': {
+    prefixes: ['I am ', 'Letting go of stress, ', 'With a pleasant rhythm, ', 'My mind and body are ', 'Leaving everything to the stars, '],
+    cores: ['drifting like calm waves, ', 'surrendering to deep safety, ', 'living in a relaxed state, ', 'tasting the sweet silence, ', 'smiling gently at myself, '],
+    suffixes: ['completely free from tension.', 'spending a relaxing time.', 'calmed like a deep sleep.', 'safe and protected.', 'returning to my natural self.'],
+  },
+  'Positive': {
+    prefixes: ['I am ', 'With a bright smile, ', 'Guided by the light, ', 'My heart is always ', 'Focusing on fun things, '],
+    cores: ['seeing everything positively, ', 'imagining a thrilling future, ', 'sharing brightness with others, ', 'never forgetting humor, ', 'emitting sun-like energy, '],
+    suffixes: ['in a very happy mood.', 'living joy-filled days.', 'shining with bright light.', 'finding everything goes well.', 'loving my life from my heart.'],
+  },
+  'Success': {
+    prefixes: ['I am ', 'Having great talent, ', 'Connecting with abundance, ', 'All my actions are ', 'Releasing all fear, '],
+    cores: ['attracting success naturally, ', 'grabbing every opportunity, ', 'shaping all desired results, ', 'acting as a confident winner, ', 'riding the wave of prosperity, '],
+    suffixes: ['creating my desired reality.', 'achieving massive results.', 'enjoying wealth and freedom.', 'guided to great success.', 'prospering in all area of life.'],
+  },
+  'Luck': {
+    prefixes: ['I am ', 'At miraculous timing, ', 'Always at the best moment, ', 'In my life, ', 'In unexpected ways, '],
+    cores: ['receiving luck beyond imagination, ', 'blessed with great people and chances, ', 'seeing everything go well, ', 'experiencing waves of high luck, ', 'attracting money, love and wealth, '],
+    suffixes: ['incredibly lucky.', 'surrounded by miracles.', 'protected by the best luck.', 'supported by everything.', 'always in luck.'],
+  },
+  'Relationships': {
+    prefixes: ['I am ', 'With people around me, ', 'Surrounded by trusted friends, ', 'Every encounter, ', 'My relationships are '],
+    cores: ['bound by deep love and harmony, ', 'building mutually uplifting bonds, ', 'enjoying honest communication, ', 'valuing warm heart exchanges, ', 'attracting wonderful connections, '],
+    suffixes: ['nurturing rich connections.', 'filled with kindness and smiles.', 'blessed with the best supporters.', 'creating a love-filled community.', 'loved and respected by all.'],
+  },
+  'Action': {
+    prefixes: ['I am ', 'Without hesitation, ', 'Immediately, ', 'My actions are ', 'With a light step, '],
+    cores: ['taking the necessary step, ', 'moving without missing a chance, ', 'executing decisions instantly, ', 'working with passion, ', 'crossing any wall lightly, '],
+    suffixes: ['getting the best results.', 'always moving forward.', 'causing wonderful changes.', 'believing in myself and pushing on.', 'improving my quality of life.'],
+  },
+  'general': {
+    prefixes: ['I am ', 'Every new morning, ', 'My inner voice is ', 'This day today, ', 'Anytime, anywhere, '],
+    cores: ['shining as my true self, ', 'accepting everything positively, ', 'riding the beautiful flow of life, ', 'touching the kindness of others, ', 'getting everything I need, '],
+    suffixes: ['full of happiness.', 'feeling calm joy.', 'moving in a great direction.', 'living with self-belief.', 'surrounded by love and light.'],
+  },
+};
+
+const dbOtherEn: Record<string, AffirmationParts> = {
+  'Self-Esteem': {
+    prefixes: ['{SUBJECT} is ', 'Really, {SUBJECT} is ', 'Always, {SUBJECT} is ', 'As far as I know, {SUBJECT} is ', 'Today\'s {SUBJECT} is '],
+    cores: ['a very kind person who cares for others. ', 'a creative person like a sun shining on everyone. ', 'a wonderful person just by existing. ', 'strong enough to move at their own pace. ', 'talented at noticing their own good points. '],
+    suffixes: ['I\'m always rooting for you!', 'I\'ll always be watching over you.', 'You are perfect as you are.', 'I am so proud of you!', 'Go forward with confidence.'],
+  },
+  'Gratitude': {
+    prefixes: ['{SUBJECT} is ', 'I am for {SUBJECT}, ', 'Always for {SUBJECT}\'s presence, ', 'Because {SUBJECT} is here, ', 'Every day from {SUBJECT}, '],
+    cores: ['deeply thankful. ', 'given much energy and courage. ', 'receiving overflowing love. ', 'made to smile naturally. ', 'influenced in a wonderful way. '],
+    suffixes: ['Thank you always!', 'I\'m filled with gratitude.', 'So glad we met.', 'Look forward to more.', 'I love your kindness.'],
+  },
+  'Goals': {
+    prefixes: ['{SUBJECT} can, ', 'Definitely {SUBJECT} can, ', 'Undaunted {SUBJECT} is, ', 'When {SUBJECT} is serious, ', 'For {SUBJECT} seeking dreams, '],
+    cores: ['overcome any difficulty. ', 'destined to grab any desired future. ', 'gifted with action to move without doubt. ', 'holding strength to attract success. ', 'capable of results that surprise others. '],
+    suffixes: ['I guarantee it!', 'The future is bright.', 'Cheering with all my heart!', 'It will definitely work out!', 'Believe in yourself and go.'],
+  },
+  'Healing': {
+    prefixes: ['{SUBJECT} is ', 'Current {SUBJECT} is ', 'For hardworking {SUBJECT}, ', 'To {SUBJECT} who did their best, ', 'Kindhearted {SUBJECT} is '],
+    cores: ['allowed to rest and spoil themselves. ', 'working harder than anyone, so relax now. ', 'filled with calm universal energy. ', 'already wonderful as they are. ', 'allowed to let go of pain and be happy. '],
+    suffixes: ['Take a good rest now.', 'Protected by peaceful love.', 'I\'m always on your side.', 'Be gently healed in mind and body.', 'It\'s okay to breathe deeply.'],
+  },
+  'Motivation': {
+    prefixes: ['{SUBJECT} is ', 'For future {SUBJECT}, ', 'Passionate {SUBJECT} can, ', 'High-potential {SUBJECT} is, ', 'From growing {SUBJECT}, '],
+    cores: ['hiding infinite energy within. ', 'possessing courage to cross any wall. ', 'capable of succeeding in any new challenge. ', 'showing great leadership to move others. ', 'ready to create the best future. '],
+    suffixes: ['You have power to make it possible!', 'Expecting your best performance!', 'You look great moving forward!', 'Always rooting for you!', 'Push on with confidence!'],
+  },
+  'Focus': {
+    prefixes: ['{SUBJECT} is ', 'Strong-under-pressure {SUBJECT} is, ', 'Current {SUBJECT} can, ', 'Calm {SUBJECT} is, ', 'Sensitive {SUBJECT} is '],
+    cores: ['talented at immersing in the present. ', 'capable of judging accurately with focus. ', 'able to release noise and capture info. ', 'connected to inner wisdom for results. ', 'holding power to finish with speed. '],
+    suffixes: ['Controlling everything perfectly.', 'Always in the best state.', 'Filled with quiet confidence.', 'Great results are waiting.', 'You look great focusing.'],
+  },
+  'Relax': {
+    prefixes: ['{SUBJECT} is ', 'Current {SUBJECT} is ', 'Calm {SUBJECT} is, ', 'The air around {SUBJECT} is, ', 'Relaxed {SUBJECT} is '],
+    cores: ['wrapped in deep peace with no tension. ', 'releasing all to the stars and relaxing. ', 'returning to natural self in silence. ', 'having a gentle vibe that calms others. ', 'quieted like a deep sleep. '],
+    suffixes: ['Just spend time relaxingly.', 'Safe and protected.', 'Having a great expression.', 'Everything is fine, so be at ease.', 'Calm time is flowing.'],
+  },
+  'Positive': {
+    prefixes: ['{SUBJECT} is ', 'Smiling {SUBJECT} is, ', 'Always fun {SUBJECT} is, ', 'Being with {SUBJECT}, ', 'Positive {SUBJECT} is '],
+    cores: ['like a sun illuminating the surroundings. ', 'so humorous and energizing to be with. ', 'a genius at seeing things positively. ', 'attracting a thrilling future. ', 'hope itself. '],
+    suffixes: ['Makes me feel so happy!', 'Thanks for the smile!', 'Everything goes well, no worries!', 'Enjoying life from the heart!', 'You brighten me up!'],
+  },
+  'Success': {
+    prefixes: ['{SUBJECT} is ', 'Talented {SUBJECT} is, ', 'Chosen {SUBJECT} is, ', 'All actions of {SUBJECT} are, ', 'Destined-to-succeed {SUBJECT} is '],
+    cores: ['attracting great success naturally. ', 'destined to grab massive results. ', 'like a wizard shaping all desires. ', 'wonderful as a confident winner. ', 'connected to the flow of abundance. '],
+    suffixes: ['Enjoy wealth and freedom.', 'Big success is waiting.', 'All life is prospering.', 'Worth having everything.', 'Show me the great view.'],
+  },
+  'Luck': {
+    prefixes: ['{SUBJECT} is ', 'Really {SUBJECT} is ', 'In {SUBJECT}\'s life, ', 'Always for {SUBJECT}, ', 'Miraculous {SUBJECT} has '],
+    cores: ['born under an incredibly lucky star. ', 'always getting chances at best timing. ', 'power to cause miracles unexpectedly. ', 'attracted money, love and abundance. ', 'seeing everything go well automatically. '],
+    suffixes: ['Waves of luck are coming.', 'Everything is on your side.', 'Always in luck.', 'Protected by best luck.', 'Loved by the god of destiny.'],
+  },
+  'Relationships': {
+    prefixes: ['{SUBJECT} is ', 'Around {SUBJECT}, ', 'Loved-by-all {SUBJECT} is, ', 'Honest {SUBJECT} can, ', 'Charming {SUBJECT} is '],
+    cores: ['destined for best teammates and friends. ', 'having a magic power to make others smile. ', 'trusted for their wonderful character. ', 'attracting best bonds to uplift each other. ', 'a presence that brings harmony anywhere. '],
+    suffixes: ['Happy with great people.', 'Everyone loves you.', 'Protected by great connections.', 'Good bonds are expanding.', 'Building best partnerships.'],
+  },
+  'Action': {
+    prefixes: ['{SUBJECT} can, ', 'Quick-deciding {SUBJECT} is, ', 'Instant-acting {SUBJECT} has, ', 'Light-moving {SUBJECT} can, ', 'Acting {SUBJECT} is '],
+    cores: ['grab any chance without missing. ', 'release doubt and take the first step. ', 'clearing the future with speed. ', 'progressing while enjoying difficulty. ', 'cool because they lead by action. '],
+    suffixes: ['Always grabbing best timing.', 'That action is the shortcut.', 'Filled with power to move the future.', 'Shining with every step.', 'Evolving without stopping.'],
+  },
+  'general': {
+    prefixes: ['{SUBJECT} is ', 'Special {SUBJECT} is, ', '{SUBJECT}\'s inner light is, ', 'Anytime anywhere {SUBJECT} is, ', 'The best {SUBJECT} I know is '],
+    cores: ['wonderful, shining as themselves. ', 'loved person surrounded by kindness. ', 'going to a great place on the flow of life. ', 'giving me all the joy I need. ', 'accepting all and enjoying life. '],
+    suffixes: ['Great future is waiting.', 'Believe in yourself and go.', 'Safe in love and light.', 'Always rooting for you.', 'Highest as you are.'],
+  },
+};
+
 const getRandomItem = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+
 
 const shuffleArray = <T>(array: T[]): T[] => {
   const newArray = [...array];
@@ -158,21 +297,26 @@ export type SubjectType = 'I' | 'YOU' | 'NAME';
 export const generateLocalAffirmation = (
   themeQuery: string,
   subjectType: SubjectType = 'I',
-  customName: string = ''
+  customName: string = '',
+  lang: string = 'ja'
 ): string => {
-  let selectedTheme = 'general';
+  let selectedTheme = lang === 'en' ? 'general' : 'general';
+  const targetDb = lang === 'en' ? dbSelfEn : dbSelf;
   
   // テーマの判定
-  for (const key of Object.keys(dbSelf)) {
-    if (themeQuery.includes(key)) {
+  for (const key of Object.keys(targetDb)) {
+    if (themeQuery.toLowerCase().includes(key.toLowerCase())) {
       selectedTheme = key;
       break;
     }
   }
   
   const isOther = subjectType === 'YOU' || subjectType === 'NAME';
-  const db = isOther ? dbOther : dbSelf;
-  const rules = db[selectedTheme];
+  const db = lang === 'en' 
+    ? (isOther ? dbOtherEn : dbSelfEn)
+    : (isOther ? dbOther : dbSelf);
+    
+  const rules = db[selectedTheme] || db['general'];
   
   let prefix = getRandomItem(rules.prefixes);
   let core = getRandomItem(rules.cores);
@@ -180,33 +324,39 @@ export const generateLocalAffirmation = (
   
   // 主語変換ロジック
   if (isOther) {
-    const subjectName = subjectType === 'NAME' && customName ? customName : 'あなた';
+    const defaultYou = lang === 'en' ? 'You' : 'あなた';
+    const subjectName = subjectType === 'NAME' && customName ? customName : defaultYou;
     prefix = prefix.replace(/{SUBJECT}/g, subjectName);
     core = core.replace(/{SUBJECT}/g, subjectName);
     suffix = suffix.replace(/{SUBJECT}/g, subjectName);
   }
   
-  return `${prefix}${core}${suffix}`;
+  return lang === 'en' ? `${prefix}${core}${suffix}` : `${prefix}${core}${suffix}`;
 };
 
 // 長文のアファメーションを生成する (重複しない3つの文を結合して読みやすく整形)
 export const generateLongAffirmation = (
   themeQuery: string,
   subjectType: SubjectType = 'I',
-  customName: string = ''
+  customName: string = '',
+  lang: string = 'ja'
 ): string => {
-  let selectedTheme = 'general';
+  let selectedTheme = lang === 'en' ? 'general' : 'general';
+  const targetDb = lang === 'en' ? dbSelfEn : dbSelf;
   
-  for (const key of Object.keys(dbSelf)) {
-    if (themeQuery.includes(key)) {
+  for (const key of Object.keys(targetDb)) {
+    if (themeQuery.toLowerCase().includes(key.toLowerCase())) {
       selectedTheme = key;
       break;
     }
   }
   
   const isOther = subjectType === 'YOU' || subjectType === 'NAME';
-  const db = isOther ? dbOther : dbSelf;
-  const rules = db[selectedTheme];
+  const db = lang === 'en' 
+    ? (isOther ? dbOtherEn : dbSelfEn)
+    : (isOther ? dbOther : dbSelf);
+    
+  const rules = db[selectedTheme] || db['general'];
   
   // シャッフルして重複を防ぐ
   const shuffledPrefixes = shuffleArray(rules.prefixes);
@@ -222,7 +372,8 @@ export const generateLongAffirmation = (
     let suffix = shuffledSuffixes[i % shuffledSuffixes.length];
     
     if (isOther) {
-      const subjectName = subjectType === 'NAME' && customName ? customName : 'あなた';
+      const defaultYou = lang === 'en' ? 'You' : 'あなた';
+      const subjectName = subjectType === 'NAME' && customName ? customName : defaultYou;
       prefix = prefix.replace(/{SUBJECT}/g, subjectName);
       core = core.replace(/{SUBJECT}/g, subjectName);
       suffix = suffix.replace(/{SUBJECT}/g, subjectName);
@@ -230,5 +381,5 @@ export const generateLongAffirmation = (
     sentences.push(`${prefix}${core}${suffix}`);
   }
   
-  return sentences.join('\n\n');
+  return sentences.join(lang === 'en' ? ' ' : '\n\n');
 };

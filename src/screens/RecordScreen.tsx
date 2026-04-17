@@ -5,9 +5,10 @@ import { Mic, Square, Sparkles, AlertCircle } from 'lucide-react-native';
 import { useAppStore } from '../store/useAppStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateLongAffirmation, SubjectType } from '../utils/affirmationGenerator';
+import { getTranslation } from '../i18n/translations';
 
 export function RecordScreen() {
-  const { addAffirmation, isDarkMode } = useAppStore();
+  const { addAffirmation, isDarkMode, language } = useAppStore();
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -26,7 +27,9 @@ export function RecordScreen() {
   const activeColor = isDarkMode ? '#00F2FE' : '#007AFF';
   const inputBorder = isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
 
-  const presets = ['自己肯定感', '感謝', '目標達成', '癒やし', 'モチベーション', '集中力', 'リラックス', 'ポジティブ', '成功', '運', '人間関係', '行動力'];
+  const presets = language === 'en' 
+    ? ['Self-Esteem', 'Gratitude', 'Goals', 'Healing', 'Motivation', 'Focus', 'Relax', 'Positive', 'Success', 'Luck', 'Relationships', 'Action']
+    : ['自己肯定感', '感謝', '目標達成', '癒やし', 'モチベーション', '集中力', 'リラックス', 'ポジティブ', '成功', '運', '人間関係', '行動力'];
 
   // タイマー処理
   useEffect(() => {
@@ -50,8 +53,8 @@ export function RecordScreen() {
   const handleAutoGenerate = async (preset: string) => {
     setIsGenerating(true);
     try {
-      // ローカルジェネレーターで即時テキスト作成（API通信不要・完全無料）
-      const text = generateLongAffirmation(preset, subjectType, customName);
+      // ローカルジェネレーターで即時テキスト作成
+      const text = generateLongAffirmation(preset, subjectType, customName, language);
       setAffirmationText(text.trim());
     } catch (error: any) {
       console.error('Generation Error:', error);
@@ -126,13 +129,13 @@ export function RecordScreen() {
         addAffirmation({
           id: Date.now().toString(),
           uri: uri,
-          title: `自分の録音 (${new Date().toLocaleDateString('ja-JP')})`,
+          title: language === 'en' ? `Recording (${new Date().toLocaleDateString('en-US')})` : `自分の録音 (${new Date().toLocaleDateString('ja-JP')})`,
           text: affirmationText.trim() || undefined,
           date: Date.now()
         });
       }
       setRecording(null);
-      Alert.alert('完了', '録音が完了し、ホーム画面に保存されました！');
+      Alert.alert(getTranslation(language, 'rec', 'successTitle'), getTranslation(language, 'rec', 'successMsg'));
       setAffirmationText(''); // 録音完了したらテキストをクリア
     } catch (error) {
       console.error('録音の停止に失敗しました', error);
@@ -142,27 +145,27 @@ export function RecordScreen() {
   return (
     <LinearGradient colors={themeColors as [string, string]} style={styles.container}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: textColor }]}>自分の声を録音する</Text>
-        <Text style={[styles.subtitle, { color: subTextColor }]}>ポジティブな自己暗示（アファメーション）を吹き込んでみましょう</Text>
+        <Text style={[styles.title, { color: textColor }]}>{getTranslation(language, 'rec', 'title')}</Text>
+        <Text style={[styles.subtitle, { color: subTextColor }]}>{getTranslation(language, 'rec', 'subtitle')}</Text>
         
         {/* ステップ1: 主語選択 */}
         <View style={{ marginBottom: 16, marginTop: 8 }}>
-          <Text style={[styles.presetLabel, { color: textColor, marginBottom: 8 }]}>① 主語のパターンを選びます</Text>
+          <Text style={[styles.presetLabel, { color: textColor, marginBottom: 8 }]}>{getTranslation(language, 'rec', 'step1')}</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity onPress={() => setSubjectType('I')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'I' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'I' ? activeColor : borderColor }]}>
-              <Text style={{ color: subjectType === 'I' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'I' ? 'bold' : 'normal' }}>私</Text>
+              <Text style={{ color: subjectType === 'I' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'I' ? 'bold' : 'normal' }}>{getTranslation(language, 'gen', 'subjI')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSubjectType('YOU')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'YOU' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'YOU' ? activeColor : borderColor }]}>
-              <Text style={{ color: subjectType === 'YOU' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'YOU' ? 'bold' : 'normal' }}>あなた</Text>
+              <Text style={{ color: subjectType === 'YOU' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'YOU' ? 'bold' : 'normal' }}>{getTranslation(language, 'gen', 'subjYou')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSubjectType('NAME')} style={[styles.presetButton, { flex: 1, backgroundColor: subjectType === 'NAME' ? 'rgba(0,122,255,0.1)' : cardBg, borderColor: subjectType === 'NAME' ? activeColor : borderColor }]}>
-              <Text style={{ color: subjectType === 'NAME' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'NAME' ? 'bold' : 'normal' }}>名前</Text>
+              <Text style={{ color: subjectType === 'NAME' ? activeColor : textColor, textAlign: 'center', fontWeight: subjectType === 'NAME' ? 'bold' : 'normal' }}>{getTranslation(language, 'gen', 'subjName')}</Text>
             </TouchableOpacity>
           </View>
           {subjectType === 'NAME' && (
             <TextInput
               style={{ backgroundColor: inputBg, color: textColor, borderColor: inputBorder, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 8 }}
-              placeholder="呼ばれたい名前を入力 (例: カズキ、カー君、かずぽん etc)"
+              placeholder={getTranslation(language, 'gen', 'namePlaceholder')}
               placeholderTextColor={subTextColor}
               value={customName}
               onChangeText={setCustomName}
@@ -172,7 +175,7 @@ export function RecordScreen() {
 
         {/* AIワンタップ生成ボタン */}
         <View style={styles.presetContainer}>
-          <Text style={[styles.presetLabel, { color: textColor }]}>② テーマを選んでAIで自動作成：</Text>
+          <Text style={[styles.presetLabel, { color: textColor }]}>{getTranslation(language, 'rec', 'step2')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 8 }}>
             {presets.map(preset => (
               <TouchableOpacity
@@ -189,11 +192,11 @@ export function RecordScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
-          <Text style={[styles.presetLabel, { color: textColor, marginVertical: 0 }]}>③ 最後に、自由に編集します：</Text>
+          <Text style={[styles.presetLabel, { color: textColor, marginVertical: 0 }]}>{getTranslation(language, 'rec', 'step3')}</Text>
           {/* 文字数カウンター */}
           <View style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: inputBorder }}>
             <Text style={{ fontSize: 11, fontWeight: '600', color: subTextColor }}>
-              {affirmationText.length} 文字
+              {affirmationText.length} {language === 'en' ? 'chars' : '文字'}
             </Text>
           </View>
         </View>
@@ -202,7 +205,7 @@ export function RecordScreen() {
         <TextInput
           style={[styles.textArea, { backgroundColor: inputBg, color: textColor, borderColor }]}
           multiline
-          placeholder="AIで作成された文章が入ります、自由に手直ししてください"
+          placeholder={getTranslation(language, 'rec', 'textPlaceholder')}
           placeholderTextColor={subTextColor}
           value={affirmationText}
           onChangeText={setAffirmationText}
@@ -225,7 +228,7 @@ export function RecordScreen() {
             )}
           </TouchableOpacity>
           <Text style={[styles.statusText, { color: subTextColor }]}>
-            {isRecording ? 'タップして停止' : 'タップして録音開始'}
+            {isRecording ? getTranslation(language, 'rec', 'stopRec') : getTranslation(language, 'rec', 'startRec')}
           </Text>
         </View>
 
@@ -233,12 +236,12 @@ export function RecordScreen() {
         <View style={[styles.tipsContainer, { backgroundColor: cardBg, borderColor }]}>
           <View style={styles.tipsHeader}>
             <AlertCircle color="#00F2FE" size={18} />
-            <Text style={[styles.tipsTitle, { color: textColor }]}>録音のコツ</Text>
+            <Text style={[styles.tipsTitle, { color: textColor }]}>{getTranslation(language, 'rec', 'tipTitle')}</Text>
           </View>
-          <Text style={[styles.tipItem, { color: subTextColor }]}>・静かな環境で録音してください</Text>
-          <Text style={[styles.tipItem, { color: subTextColor }]}>・はっきりとした声で、ゆっくりと話してください</Text>
-          <Text style={[styles.tipItem, { color: subTextColor }]}>・AI音声に負けないためにも、抑揚をつけて話してください</Text>
-          <Text style={[styles.tipItem, { color: subTextColor }]}>・感情、思いを強く言葉に込めて話してください</Text>
+          <Text style={[styles.tipItem, { color: subTextColor }]}>{getTranslation(language, 'rec', 'tip1')}</Text>
+          <Text style={[styles.tipItem, { color: subTextColor }]}>{getTranslation(language, 'rec', 'tip2')}</Text>
+          <Text style={[styles.tipItem, { color: subTextColor }]}>{getTranslation(language, 'rec', 'tip3')}</Text>
+          <Text style={[styles.tipItem, { color: subTextColor }]}>{getTranslation(language, 'rec', 'tip4')}</Text>
         </View>
 
       </ScrollView>
