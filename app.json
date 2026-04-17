@@ -2,7 +2,7 @@
   "expo": {
     "name": "AI×倍速×アファメーション",
     "slug": "baisoku-affirmation",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "sdkVersion": "52.0.0",
     "newArchEnabled": false,
     "orientation": "portrait",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kazu.antigravity",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "newArchEnabled": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "アファメーションのボイスクローンを作成するために、自分の声を録音する目的でマイクを使用します。録音された声はAI音声生成にのみ使用されます。",
