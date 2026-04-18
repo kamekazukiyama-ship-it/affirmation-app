@@ -287,8 +287,8 @@ export function PremiumScreen({ navigation }: any) {
           {/* 規約・ポリシーリンク (Apple審査用) */}
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => {
-              // Apple公式の標準規約 (EULA) URL
-              const eulaUrl = 'https://www.apple.com/legal/internet-services/itunes/appstore/dev/stdeula/';
+              // カズ様独自の日本語利用規約ページ
+              const eulaUrl = 'https://kamekazukiyama-ship-it.github.io/affirmation-app/terms-of-use.html';
               Linking.openURL(eulaUrl);
             }}>
               <Text style={[styles.footerLinkText, { color: activeColor }]}>
