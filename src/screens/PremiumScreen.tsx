@@ -287,8 +287,10 @@ export function PremiumScreen({ navigation }: any) {
           {/* 規約・ポリシーリンク (Apple審査用) */}
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => {
-              // カズ様独自の日本語利用規約ページ
-              const eulaUrl = 'https://kamekazukiyama-ship-it.github.io/affirmation-app/terms-of-use.html';
+              // 言語設定に応じてURLを切り替え
+              const eulaUrl = language === 'ja' 
+                ? 'https://kamekazukiyama-ship-it.github.io/affirmation-app/terms-of-use.html'
+                : 'https://kamekazukiyama-ship-it.github.io/affirmation-app/terms-of-use-en.html';
               Linking.openURL(eulaUrl);
             }}>
               <Text style={[styles.footerLinkText, { color: activeColor }]}>
@@ -296,7 +298,12 @@ export function PremiumScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
             <Text style={[styles.footerDivider, { color: subTextColor }]}>|</Text>
-            <TouchableOpacity onPress={() => Linking.openURL('https://kamekazukiyama-ship-it.github.io/affirmation-app/support.html')}>
+            <TouchableOpacity onPress={() => {
+              const privacyUrl = language === 'ja'
+                ? 'https://kamekazukiyama-ship-it.github.io/affirmation-app/support.html'
+                : 'https://kamekazukiyama-ship-it.github.io/affirmation-app/support-en.html';
+              Linking.openURL(privacyUrl);
+            }}>
               <Text style={[styles.footerLinkText, { color: activeColor }]}>
                 {getTranslation(language, 'premium', 'privacyPolicy')}
               </Text>

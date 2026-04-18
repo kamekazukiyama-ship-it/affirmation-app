@@ -299,7 +299,12 @@ export function SettingScreen({ navigation }: any) {
       [
         { 
           text: language === 'ja' ? 'Webで全文を確認' : 'Full Policy (Web)', 
-          onPress: () => Linking.openURL('https://kamekazukiyama-ship-it.github.io/affirmation-app/support.html') 
+          onPress: () => {
+            const url = language === 'ja'
+              ? 'https://kamekazukiyama-ship-it.github.io/affirmation-app/support.html'
+              : 'https://kamekazukiyama-ship-it.github.io/affirmation-app/support-en.html';
+            Linking.openURL(url);
+          }
         },
         { text: 'OK', style: 'default' }
       ]
