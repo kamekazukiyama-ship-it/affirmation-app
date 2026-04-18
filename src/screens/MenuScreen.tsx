@@ -24,15 +24,8 @@ export function MenuScreen() {
       icon: <Library color="#007AFF" size={32} />,
       route: 'Playlists',
       color: '#007AFF',
-      bgColor: isDarkMode ? 'rgba(0, 122, 255, 0.1)' : '#E5F1FF'
-    },
-    {
-      title: getTranslation(language, 'menu', 'premiumTitle'),
-      description: getTranslation(language, 'menu', 'premiumDesc'),
-      icon: <Star color="#FFD700" size={32} />,
-      route: 'Premium',
-      color: '#FFD700',
-      bgColor: isDarkMode ? 'rgba(255, 215, 0, 0.1)' : '#FFF9C4'
+      bgColor: isDarkMode ? 'rgba(0, 122, 255, 0.1)' : '#E5F1FF',
+      isPremium: false
     },
     {
       title: getTranslation(language, 'menu', 'settingsTitle'),
@@ -40,7 +33,17 @@ export function MenuScreen() {
       icon: <Settings color="#34C759" size={32} />,
       route: 'Settings',
       color: '#34C759',
-      bgColor: isDarkMode ? 'rgba(52, 199, 89, 0.1)' : '#E8F5E9'
+      bgColor: isDarkMode ? 'rgba(52, 199, 89, 0.1)' : '#E8F5E9',
+      isPremium: false
+    },
+    {
+      title: getTranslation(language, 'menu', 'premiumTitle'),
+      description: getTranslation(language, 'menu', 'premiumDesc'),
+      icon: <Star color="#FFD700" size={32} />,
+      route: 'Premium',
+      color: '#FFD700',
+      bgColor: isDarkMode ? 'rgba(255, 215, 0, 0.15)' : '#FFF9C4',
+      isPremium: true
     }
   ];
 
@@ -66,13 +69,13 @@ export function MenuScreen() {
                 backgroundColor: cardBg,
                 padding: 20,
                 borderRadius: 16,
-                borderWidth: 1,
-                borderColor: borderColor,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: isDarkMode ? 0.3 : 0.05,
-                shadowRadius: 8,
-                elevation: 3,
+                borderWidth: item.isPremium ? 2 : 1,
+                borderColor: item.isPremium ? '#FFD700' : borderColor,
+                shadowColor: item.isPremium ? '#FFD700' : '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: item.isPremium ? 0.4 : (isDarkMode ? 0.3 : 0.05),
+                shadowRadius: 10,
+                elevation: 5,
               }}
             >
               <View style={{ 

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '../store/useAppStore';
@@ -164,7 +164,7 @@ export function AuthScreen({ navigation }: any) {
                 style={styles.switchButton} 
                 onPress={() => setIsLoginMode(!isLoginMode)}
               >
-                <Text style={[styles.switchButtonText, { color: '#00F2FE' }]}>
+                <Text style={[styles.switchButtonText, { color: '#BF00FF' }]}>
                   {isLoginMode ? t('switchRegister') : t('switchLogin')}
                 </Text>
               </TouchableOpacity>
