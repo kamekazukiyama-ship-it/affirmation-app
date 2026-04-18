@@ -34,10 +34,8 @@ export function PremiumScreen({ navigation }: any) {
   }, []);
 
   const handlePurchase = async (pkgId: string) => {
-    if (!user) {
-      Alert.alert(language === 'ja' ? 'エラー' : 'Error', getTranslation(language, 'premium', 'loginRequired'));
-      return;
-    }
+    // Apple 5.1.1(v) に対応するため、ログイン(登録)チェックを削除
+    // 匿名ユーザーの状態でも購入を許可する
 
     try {
       setIsPurchasing(true);
@@ -53,10 +51,13 @@ export function PremiumScreen({ navigation }: any) {
               membership: 'premium',
               points: increment(3000)
             });
-            Alert.alert(language === 'ja' ? 'ありがとうございます！' : 'Thank You!', language === 'ja' ? 'プレミアム会員へのアップグレードが完了しました✨' : 'Elite membership upgraded! ✨');
+            Alert.alert(
+              getTranslation(language, 'common', 'thankYou') || 'Thank You!',
+              getTranslation(language, 'premium', 'subSuccess')
+            );
           }
         } else {
-          throw new Error(language === 'ja' ? '商品が見つかりませんでした' : 'Product not found');
+          throw new Error(getTranslation(language, 'premium', 'productNotFound'));
         }
       } else {
         const products = await Purchases.getProducts([pkgId]);
@@ -72,14 +73,20 @@ export function PremiumScreen({ navigation }: any) {
           await updateDoc(userRef, {
             points: increment(addedPoints)
           });
-          Alert.alert(language === 'ja' ? '完了' : 'Success', language === 'ja' ? `${addedPoints} ポイントが追加されました！` : `${addedPoints} points added!`);
+          Alert.alert(
+            getTranslation(language, 'common', 'success') || 'Success',
+            getTranslation(language, 'premium', 'pointsAdded').replace('{0}', addedPoints.toString())
+          );
         } else {
-          throw new Error(language === 'ja' ? 'ポイントパックが見つかりませんでした' : 'Point pack not found');
+          throw new Error(getTranslation(language, 'premium', 'packNotFound'));
         }
       }
     } catch (e: any) {
       if (!e.userCancelled) {
-        Alert.alert(language === 'ja' ? 'エラー' : 'Error', (language === 'ja' ? '購入処理に失敗しました。\n' : 'Purchase failed.\n') + e.message);
+        Alert.alert(
+          getTranslation(language, 'common', 'error') || 'Error',
+          (getTranslation(language, 'premium', 'purchaseFailed') || 'Purchase failed.') + '\n' + e.message
+        );
       }
     } finally {
       setIsPurchasing(false);
@@ -276,6 +283,25 @@ export function PremiumScreen({ navigation }: any) {
               </View>
             )}
           </View>
+
+          {/* 規約・ポリシーリンク (Apple審査用) */}
+          <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => {
+              // Apple公式の標準規約 (EULA) URL
+              const eulaUrl = 'https://www.apple.com/legal/internet-services/itunes/appstore/dev/stdeula/';
+              Linking.openURL(eulaUrl);
+            }}>
+              <Text style={[styles.footerLinkText, { color: activeColor }]}>
+                {getTranslation(language, 'premium', 'termsOfUse')}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.footerDivider, { color: subTextColor }]}>|</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://kamekazukiyama-ship-it.github.io/affirmation-app/support.html')}>
+              <Text style={[styles.footerLinkText, { color: activeColor }]}>
+                {getTranslation(language, 'premium', 'privacyPolicy')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
         {isPurchasing && (
@@ -413,5 +439,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 8,
     borderRadius: 8,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingBottom: 20,
+    gap: 10,
+  },
+  footerLinkText: {
+    fontSize: 12,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  footerDivider: {
+    fontSize: 12,
   }
 });

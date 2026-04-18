@@ -14,6 +14,11 @@ export const translations = {
       guideTitle: '使い方', guideStep1: '録音する', guideStep2: 'AI生成', guideStep3: '倍速で再生！',
       calTitle: '記録カレンダー', currentStreak: '現在 {0} 日連続！'
     },
+    common: {
+      success: '完了',
+      error: 'エラー',
+      thankYou: 'ありがとうございます！',
+    },
     player: {
       title: 'プレイヤー',
       empty: 'アファメーションがありません。\n+ボタンから追加しましょう！',
@@ -178,7 +183,40 @@ export const translations = {
       step3Desc: '作成された「API Key」という文字列を全選択してコピーし、すぐ上の入力欄に貼り付ければ完了です！',
       step3Note: '※APIキーは一度しか表示されないため、メモアプリ等どこかに保存しておくことをオススメします。',
       loadingPurchase: '決済処理を行っています...\nそのままお待ちください',
-      loginRequired: '購入するにはログインが必要です。'
+      loginRequired: '購入するにはログインが必要です。',
+      termsOfUse: '利用規約',
+      privacyPolicy: 'プライバシーポリシー',
+      subSuccess: 'プレミアム会員へのアップグレードが完了しました✨',
+      pointsAdded: '{0} ポイントが追加されました！',
+      purchaseFailed: '購入処理に失敗しました。',
+      productNotFound: '商品が見つかりませんでした',
+      packNotFound: 'ポイントパックが見つかりませんでした'
+    },
+    login: {
+      title: 'AI×倍速×アファメーション',
+      welcome: 'おかえりなさい',
+      createAcct: 'アカウント作成',
+      subtitle: 'データを安全にクラウドに保存し、どの端末からでもアクセスできるようにします。',
+      email: 'メールアドレス',
+      password: 'パスワード (6文字以上)',
+      btnLogin: 'ログインする',
+      btnRegister: '登録して始める',
+      switchRegister: '新規アカウント作成はこちら',
+      switchLogin: '既にアカウントをお持ちの方はこちら',
+      guestBtn: 'ログインせずに始める（ゲスト利用）',
+      guestBenefit1: '※ゲスト利用中も、全ての機能をご利用いただけます。',
+      guestBenefit2: '※アカウントを登録することで、機種変更などの際にもデータを引き継ぐことが可能になります。',
+      errInput: 'メールアドレスとパスワードを入力してください。',
+      successLogin: 'ログイン成功',
+      successLoginMsg: 'クラウド同期の準備が整いました！',
+      successRegister: '登録成功',
+      successRegisterMsg: 'アカウントを作成しました！クラウド同期の準備が整いました！',
+      errAuth: '認証に失敗しました。',
+      errAlreadyInUse: 'このメールアドレスは既に使われています。',
+      errInvalidEmail: '無効なメールアドレスです。\n送信された値: [{0}]\n半角英数字になっているか確認してください。',
+      errWeakPass: 'パスワードは6文字以上で設定してください。',
+      errWrongCred: 'メールアドレスまたはパスワードが間違っています。',
+      errGuest: 'ゲストログインに失敗しました。アプリを再起動して再度お試しください。'
     }
   },
   en: {
@@ -193,6 +231,11 @@ export const translations = {
       quickGen: 'AI Generate', quickGenSub: 'AI generates your words',
       guideTitle: 'How to use', guideStep1: 'Record', guideStep2: 'AI Generate', guideStep3: 'Play Fast!',
       calTitle: 'History Calendar', currentStreak: 'Current Streak: {0} Days!'
+    },
+    common: {
+      success: 'Success',
+      error: 'Error',
+      thankYou: 'Thank You!',
     },
     player: {
       title: 'Player',
@@ -358,7 +401,40 @@ export const translations = {
       step3Desc: 'Copy the created "API Key" string and paste it into the field above!',
       step3Note: '* API keys are only displayed once. Please save it in a safe place.',
       loadingPurchase: 'Processing purchase...\nPlease wait',
-      loginRequired: 'Please login to make a purchase.'
+      loginRequired: 'Please login to make a purchase.',
+      termsOfUse: 'Terms of Use',
+      privacyPolicy: 'Privacy Policy',
+      subSuccess: 'Elite membership upgraded! ✨',
+      pointsAdded: '{0} points added!',
+      purchaseFailed: 'Purchase failed.',
+      productNotFound: 'Product not found',
+      packNotFound: 'Point pack not found'
+    },
+    login: {
+      title: 'AI x Speed x Affirmation',
+      welcome: 'Welcome Back',
+      createAcct: 'Create Account',
+      subtitle: 'Securely sync your data to the cloud and access it from any device.',
+      email: 'Email Address',
+      password: 'Password (6+ chars)',
+      btnLogin: 'Login',
+      btnRegister: 'Sign Up',
+      switchRegister: 'New here? Create account',
+      switchLogin: 'Already have an account? Login',
+      guestBtn: 'Start without Login (Guest)',
+      guestBenefit1: '* You can still use all features as a guest.',
+      guestBenefit2: '* Registering allows you to sync data across devices.',
+      errInput: 'Please enter email and password.',
+      successLogin: 'Login Success',
+      successLoginMsg: 'Ready for cloud sync!',
+      successRegister: 'Sign Up Success',
+      successRegisterMsg: 'Account created! Ready for cloud sync!',
+      errAuth: 'Authentication failed.',
+      errAlreadyInUse: 'This email is already in use.',
+      errInvalidEmail: 'Invalid email address.\nSent value: [{0}]\nPlease ensure it is in standard format.',
+      errWeakPass: 'Password must be at least 6 characters.',
+      errWrongCred: 'Invalid email or password.',
+      errGuest: 'Guest login failed. Please restart the app and try again.'
     }
   }
 };

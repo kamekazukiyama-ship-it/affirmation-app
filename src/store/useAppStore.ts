@@ -84,6 +84,7 @@ interface AppState {
   setPointBalance: (balance: number) => void;
   membershipType: 'free' | 'premium';
   setMembershipType: (type: 'free' | 'premium') => void;
+  resetForLogout: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -180,10 +181,22 @@ export const useAppStore = create<AppState>()(
       removePlaylist: (id) => set((state) => ({
         playlists: state.playlists.filter(pl => pl.id !== id)
       })),
-      addSavedText: (st) => set((state) => ({ savedTexts: [st, ...state.savedTexts] })),
       removeSavedText: (id) => set((state) => ({
         savedTexts: state.savedTexts.filter(st => st.id !== id)
-      }))
+      })),
+      resetForLogout: () => set({
+        userId: null,
+        pointBalance: 0,
+        membershipType: 'free',
+        affirmations: [],
+        playlists: [],
+        savedTexts: [],
+        elevenLabsApiKey: null,
+        bgImageUrl: null,
+        currentStreak: 0,
+        longestStreak: 0,
+        listenedDays: {}
+      })
     }),
     {
       name: 'antigravity-storage',

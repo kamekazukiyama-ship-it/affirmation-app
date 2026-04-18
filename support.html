@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antigravity - サポート & プライバシーポリシー</title>
+    <title>AI×倍速×アファメーション - サポート & プライバシーポリシー</title>
     <style>
         :root {
             --primary: #8A2BE2;
@@ -29,7 +29,7 @@
             background: linear-gradient(135deg, #1A1F2C 0%, #0B0E14 100%);
         }
         .logo {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: bold;
             background: linear-gradient(to right, #8A2BE2, #00BFFF);
             -webkit-background-clip: text;
@@ -53,6 +53,11 @@
             padding-bottom: 10px;
             margin-top: 40px;
         }
+        h3 {
+            color: #8A2BE2;
+            margin-top: 25px;
+            font-size: 1.2rem;
+        }
         .contact-box {
             background: rgba(138, 43, 226, 0.1);
             padding: 20px;
@@ -73,18 +78,24 @@
         a:hover {
             text-decoration: underline;
         }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <header>
-        <div class="logo">Antigravity</div>
-        <p>AI × 倍速アファーメーション</p>
+        <div class="logo">AI×倍速×アファメーション</div>
+        <p>潜在意識を書き換える最強の自己肯定ツール</p>
     </header>
 
     <div class="container">
         <section id="support">
             <h2>サポート窓口</h2>
-            <p>Antigravityをご利用いただきありがとうございます。アプリに関するご質問、不具合報告、機能要望などがございましたら、以下の窓口までお気軽にお問い合わせください。</p>
+            <p>「AI×倍速×アファメーション」をご利用いただきありがとうございます。アプリに関するご質問、不具合報告、機能要望などがございましたら、以下の窓口までお気軽にお問い合わせください。</p>
             <div class="contact-box">
                 <strong>お問い合わせ先:</strong><br>
                 Email: <a href="mailto:kyo.kaeneta.yatteru.ossan@gmail.com">kyo.kaeneta.yatteru.ossan@gmail.com</a><br>
@@ -94,28 +105,40 @@
 
         <section id="privacy">
             <h2>プライバシーポリシー</h2>
-            <p>制定日：2024年3月30日</p>
-            <p>「Antigravity」（以下、本アプリ）は、ユーザーのプライバシーを尊重し、個人情報の保護に最大限の注意を払います。</p>
-            
-            <h3>1. 収集する情報</h3>
-            <p>本アプリは、ユーザー名やメールアドレスなどの個人情報をサーバーへ収集・蓄積することはありません。</p>
+            <p>「AI×倍速×アファメーション」（以下、「本アプリ」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。</p>
 
-            <h3>2. クラウド同期について</h3>
-            <p>本アプリのクラウド同期機能は、ユーザー自身のGoogle Driveアカウントを使用します。データはユーザーのプライベートな領域にのみ保存され、開発者がその内容を閲覧したり、第三者へ提供したりすることはありません。</p>
+            <h3>1. マイクの利用について</h3>
+            <p>本アプリは、ユーザーご自身の声によるアファーメーション機能（録音・AIクローン生成）を利用するため、デバイスのマイク権限（RECORD_AUDIO）を使用します。</p>
 
-            <h3>3. AI機能の利用について</h3>
-            <p>アファーメーション生成に使用されるキーワードは、AIモデル（Gemini API等）への送信に使用されますが、個人を特定する情報と紐付けて保存することはありません。</p>
+            <h3>2. 写真ライブラリの利用について</h3>
+            <p>本アプリは、プレイヤー画面の背景画像をユーザーが自由にカスタマイズ（アルバムから選択）できるようにするため、写真ライブラリへのアクセス権限（READ_EXTERNAL_STORAGE / NSPhotoLibraryUsageDescription）を使用します。選択された画像は、アプリ内での表示にのみ使用され、外部に送信されることはありません。</p>
 
-            <h3>4. 免責事項</h3>
-            <p>本アプリの利用によって生じた、いかなる損害についても開発者は責任を負いかねます。自己責任においてご利用ください。</p>
+            <h3>3. データの収集・保存および同期について</h3>
+            <ul>
+                <li>録音された音声データは、アプリ内の機能（音声合成・再生）にのみ使用されます。</li>
+                <li><strong>クラウドバックアップ:</strong> ユーザーがアカウントを作成してログインした場合、アファメーションのテキストおよび音声データは、機種変更時のデータ移行や復元のため、Google Firebase（安全なクラウドストレージ）に暗号化された状態で保存されます。</li>
+            </ul>
 
-            <h3>5. ポリシーの変更</h3>
-            <p>必要に応じて、本ポリシーを改定することがあります。最新の情報はこのページにて随時公開いたします。</p>
+            <h3>4. 第三者AIサービスの利用について</h3>
+            <p>当アプリでは、高度なアファメーション生成および音声合成を提供するため、以下の第三者提供サービスを利用しています。</p>
+            <ul>
+                <li><strong>提供先:</strong> OpenAI, Inc. / ElevenLabs Inc.</li>
+                <li><strong>提供データ:</strong> ユーザーが入力したテーマ（テキスト）、およびボイスクローン生成用の音声サンプル。</li>
+                <li><strong>取り扱い:</strong> 送信されたデータは生成の目的のみに使用され、各サービスの規約に従って厳重に管理されます。ボイスクローン生成に使用された一時的な音声サンプルは、生成完了後にAPIを通じて削除をリクエストする設定を行っています。</li>
+            </ul>
+
+            <h3>5. ユーザーによるデータの管理・削除について</h3>
+            <p>ユーザーは、アプリ内の設定画面より、いつでもクラウド上のバックアップデータを削除したり、アカウントを完全に消去（退会）したりすることが可能です。退会時には、関連するすべてのデータがクラウド上から抹消されます。</p>
+
+            <h3>6. お問い合わせ</h3>
+            <p>本ポリシーに関するお問い合わせは、各アプリストアの連絡先、または上記のサポート窓口よりお願いいたします。</p>
+
+            <p style="margin-top: 40px; font-size: 0.9rem; opacity: 0.8;">改定日：2026年4月6日</p>
         </section>
     </div>
 
     <footer>
-        &copy; 2024 Kazu. All rights reserved.
+        &copy; 2026 Kazu. All rights reserved.
     </footer>
 </body>
 </html>

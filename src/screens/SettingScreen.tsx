@@ -61,7 +61,7 @@ const INSPIRING_MESSAGES = [
 ];
 
 export function SettingScreen({ navigation }: any) {
-  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl, elevenLabsApiKey, setElevenLabsApiKey, isVisualizationEnabled, setIsVisualizationEnabled, affirmations, pointBalance, membershipType, userId, language, setLanguage } = useAppStore();
+  const { isDarkMode, toggleTheme, isNotificationEnabled, setIsNotificationEnabled, notificationTime, setNotificationTime, bgImageUrl, setBgImageUrl, elevenLabsApiKey, setElevenLabsApiKey, isVisualizationEnabled, setIsVisualizationEnabled, affirmations, pointBalance, membershipType, userId, language, setLanguage, resetForLogout } = useAppStore();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -103,7 +103,25 @@ export function SettingScreen({ navigation }: any) {
   const handleLogout = async () => {
     Alert.alert(getTranslation(language, 'settings', 'logout'), language === 'ja' ? 'ログアウトしますか？ローカルのデータは削除されません。' : 'Logout now? Local data will not be deleted.', [
       { text: getTranslation(language, 'player', 'cancel'), style: 'cancel' },
-      { text: getTranslation(language, 'settings', 'logout'), style: 'destructive', onPress: async () => await signOut(auth) }
+      { 
+        text: getTranslation(language, 'settings', 'logout'), 
+        style: 'destructive', 
+        onPress: async () => {
+          try {
+            await signOut(auth);
+            // 本人の希望により、ログアウト時にローカルデータもリセット
+            resetForLogout();
+            
+            // ナビゲーションのリセット
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Auth' }],
+            });
+          } catch (e: any) {
+            Alert.alert('Error', e.message);
+          }
+        } 
+      }
     ]);
   };
 
@@ -270,25 +288,22 @@ export function SettingScreen({ navigation }: any) {
   };
 
   const handlePrivacyPolicy = () => {
-    if (language === 'en') {
-      Alert.alert(
-        'Privacy Policy',
-        'We respect your privacy.\n\n[Use of External Services]\nFor text and speech synthesis, we use third-party AI (OpenAI, ElevenLabs). Data is used solely for generation.\n\n[Data Handling]\n- Recordings are temporarily stored in the cloud and deleted immediately after synthesis.\n- Generated audio is stored in your private bucket.\n- Personal info is never shared.',
-        [
-          { text: 'Full Policy (Web)', onPress: () => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub') },
-          { text: 'OK', style: 'default' }
-        ]
-      );
-    } else {
-      Alert.alert(
-        'プライバシーポリシー',
-        '当アプリはユーザーの皆様のプライバシーを尊重します。\n\n【外部サービスの利用について】\nアファメーションの生成および音声合成のため、第三者AIサービス（OpenAI, ElevenLabs）を利用しています。送信されたデータは生成の目的のみに使用されます。\n\n【データの取り扱いについて】\n・録音データは一時的にクラウドに保存され、AI音声合成の完了後に即座に消去されます。\n・生成された音声データはご本人専用のバケットに保管され、本人のみがアクセス可能です。\n・個人情報は一切の第三者に提供されません。',
-        [
-          { text: 'Webで全文を確認', onPress: () => Linking.openURL('https://docs.google.com/document/d/e/2PACX-1vRXwLvJzuRj_zVqkd-OmA0k-jHqQ9de6r_R1aFrOdDd0VeYtgvLY6vEaUxDa06wi9ecIxLnm-1wg8vm/pub') },
-          { text: '確認しました', style: 'default' }
-        ]
-      );
-    }
+    const policyTitle = language === 'ja' ? 'プライバシーポリシー' : 'Privacy Policy';
+    const policyMsg = language === 'ja' 
+      ? '「AI×倍速×アファメーション」はユーザーのプライバシーを尊重します。\n\n1. マイクの利用：録音・AIクローン生成のため使用します。\n2. 写真の利用：背景画像のカスタマイズに使用します。\n3. データの同期：Firebaseにより安全にバックアップされます。\n4. AIサービス：OpenAI/ElevenLabsを利用し、データは生成のみに使用されます。'
+      : 'We respect your privacy.\n\n1. Mic: Used for recording/AI cloning.\n2. Photo: Used for background customization.\n3. Sync: Securely backed up via Firebase.\n4. AI: Uses OpenAI/ElevenLabs for generation only.';
+    
+    Alert.alert(
+      policyTitle,
+      policyMsg,
+      [
+        { 
+          text: language === 'ja' ? 'Webで全文を確認' : 'Full Policy (Web)', 
+          onPress: () => Linking.openURL('https://kamekazukiyama-ship-it.github.io/affirmation-app/support.html') 
+        },
+        { text: 'OK', style: 'default' }
+      ]
+    );
   };
   
 
@@ -467,24 +482,48 @@ export function SettingScreen({ navigation }: any) {
               <View style={styles.row}>
                 <View style={styles.rowLeft}>
                   <Cloud color={textColor} size={24} />
-                  <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>{getTranslation(language, 'settings', 'loggedIn')}</Text>
+                  <Text style={[styles.rowText, { color: textColor, marginLeft: 12 }]}>
+                    {user.isAnonymous 
+                      ? (language === 'ja' ? 'ゲストとしてログイン中' : 'Logged in as Guest')
+                      : getTranslation(language, 'settings', 'loggedIn')}
+                  </Text>
                 </View>
-                <Text style={{ color: subTextColor, fontSize: 13 }}>{user.email}</Text>
+                {!user.isAnonymous && <Text style={{ color: subTextColor, fontSize: 13 }}>{user.email}</Text>}
               </View>
               
-              <TouchableOpacity 
-                style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
-                onPress={handleSyncToCloud}
-              >
-                <Text style={{ color: '#000', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnSync')}</Text>
-              </TouchableOpacity>
+              {user.isAnonymous ? (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ color: subTextColor, fontSize: 13, marginBottom: 12, lineHeight: 18 }}>
+                    {language === 'ja' 
+                      ? '※現在は一時的なアカウントです。機種変更時などにデータを引き継ぐには、正式なアカウント登録が必要です。' 
+                      : '※You are using a temporary account. Please register to sync your data across devices.'}
+                  </Text>
+                  <TouchableOpacity 
+                    style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
+                    onPress={() => navigation.navigate('Auth')}
+                  >
+                    <Text style={{ color: '#000', fontWeight: 'bold' }}>
+                      {language === 'ja' ? 'アカウントを登録して同期する' : 'Register to Sync Data'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.syncButton, { backgroundColor: '#00F2FE' }]}
+                    onPress={handleSyncToCloud}
+                  >
+                    <Text style={{ color: '#000', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnSync')}</Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.syncButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00F2FE' }]}
-                onPress={handleRestoreFromCloud}
-              >
-                <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnRestore')}</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.syncButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00F2FE' }]}
+                    onPress={handleRestoreFromCloud}
+                  >
+                    <Text style={{ color: '#00F2FE', fontWeight: 'bold' }}>{getTranslation(language, 'settings', 'btnRestore')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
               
               <View style={{ height: 1, backgroundColor: borderColor, marginVertical: 8 }} />
               <TouchableOpacity style={styles.row} onPress={handleLogout}>

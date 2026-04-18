@@ -35,7 +35,8 @@ export const syncToCloud = async (userId: string, onProgress?: (msg: string) => 
       }
     }
     // ... (Firestore sync remains same) ...
-    const rawData = {
+    // コンテンツ系データのみを抽出
+    const contentData = {
       affirmations,
       playlists: state.playlists,
       savedTexts: state.savedTexts,
@@ -44,9 +45,12 @@ export const syncToCloud = async (userId: string, onProgress?: (msg: string) => 
       longestStreak: state.longestStreak,
       updatedAt: Date.now()
     };
-    const cleanData = JSON.parse(JSON.stringify(rawData));
+    const cleanData = JSON.parse(JSON.stringify(contentData));
     const docRef = doc(db, 'users', userId);
-    await setDoc(docRef, cleanData);
+    
+    // setDocの第3引数に { merge: true } を指定して、
+    // Firestore上の points や membership を消さずにコンテンツだけ更新する
+    await setDoc(docRef, cleanData, { merge: true });
 
     useAppStore.setState({ affirmations });
     return true;

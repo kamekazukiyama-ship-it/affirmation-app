@@ -45,7 +45,15 @@ export default function App() {
       Purchases.configure({ apiKey: 'appl_VqbjwSTsBnxzemRdiLCntDPvCNJ' });
     }
 
+    let unsubFirestore: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // 以前のリスナーがあれば解除
+      if (unsubFirestore) {
+        unsubFirestore();
+        unsubFirestore = null;
+      }
+
       setUser(currentUser);
       setLoading(false);
       
@@ -57,7 +65,6 @@ export default function App() {
         try {
           await Purchases.logIn(currentUser.uid);
           
-          // ログイン直後に状態をチェック
           const customerInfo = await Purchases.getCustomerInfo();
           const isPremiumActive = !!customerInfo.entitlements.active['premium'];
           const userDocRef = doc(db, 'users', currentUser.uid);
@@ -66,10 +73,7 @@ export default function App() {
           if (userSnap.exists()) {
             const currentMembership = userSnap.data().membership;
             const targetMembership = isPremiumActive ? 'premium' : 'free';
-            
-            // 状態が食い違っている場合のみFirestoreを更新
             if (currentMembership !== targetMembership) {
-              console.log(`Syncing membership: ${currentMembership} -> ${targetMembership}`);
               await setDoc(userDocRef, { membership: targetMembership }, { merge: true });
             }
           }
@@ -77,40 +81,25 @@ export default function App() {
           console.error('RC sync error:', err);
         }
 
-        // --- RevenueCatの状態変化をリアルタイム監視 ---
-        Purchases.addCustomerInfoUpdateListener(async (info) => {
-          const isPremiumActive = !!info.entitlements.active['premium'];
-          const targetMembership = isPremiumActive ? 'premium' : 'free';
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          
-          // 状態を反映
-          await setDoc(userDocRef, { membership: targetMembership }, { merge: true })
-            .catch(e => console.error('RC live update error:', e));
-        });
-
-        // Firestoreのユーザードキュメントをリアルタイム監視
+        // Firestoreの監視を開始
         const userDocRef = doc(db, 'users', currentUser.uid);
-        
-        const unsubFirestore = onSnapshot(userDocRef, async (snapshot) => {
+        unsubFirestore = onSnapshot(userDocRef, async (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data();
             useAppStore.getState().setPointBalance(data.points || 0);
             useAppStore.getState().setMembershipType(data.membership || 'free');
           } else {
-            // ドキュメントがない＝初回ユーザー。200ポイントプレゼント！
-            console.log('New user detected. Gifting 200 points...');
+            // 初回ユーザー設定
             await setDoc(userDocRef, {
               points: 200,
               membership: 'free',
               createdAt: Date.now()
             });
           }
+        }, (error) => {
+          // 権限エラー等を静かに処理（ログアウト時に一瞬発生する場合があるため）
+          console.log("Firestore snapshot error ignored:", error.message);
         });
-
-        return () => {
-          unsubscribe();
-          unsubFirestore();
-        };
       }
     });
 
@@ -149,12 +138,18 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs" component={AppNavigator} />
-        <Stack.Screen 
-          name="Auth" 
-          component={AuthScreen} 
-          options={{ presentation: 'modal' }} 
-        />
+        {!user ? (
+          <Stack.Screen name="Auth" component={AuthScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="MainTabs" component={AppNavigator} />
+            <Stack.Screen 
+              name="Auth" 
+              component={AuthScreen} 
+              options={{ presentation: 'modal' }} 
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
